@@ -107,7 +107,8 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             kind = (
                 KIND_APP if platform == "hassio" and _is_app(entry) else KIND_HACS if platform == "hacs" else KIND_OTHER
             )
-            updates.append(await self._other(state, kind))
+            slug = entry.unique_id.removesuffix("_version_latest") if kind == KIND_APP else None
+            updates.append(await self._other(state, kind, slug))
 
         # Docker/Core installs have no core update entity: ask GitHub instead.
         if not core_seen and (latest := await self._latest_core()) and notes.months_between(HA_VERSION, latest):
@@ -151,7 +152,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             KIND_CORE, _CORE_TITLE, entity_id, installed, latest, findings, url, ignored=ignored, missing=missing
         )
 
-    async def _other(self, state, kind: str) -> dict[str, Any]:
+    async def _other(self, state, kind: str, slug: str | None = None) -> dict[str, Any]:
         attrs = state.attributes
         latest = attrs.get("latest_version") or ""
         text = await self._changelog(state.entity_id, latest, attrs)
@@ -161,6 +162,11 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 0,
                 notes.Finding(title="", text=f"Home Assistant {needs}", severe=True, source="hacs", keywords=[]),
             )
+        if slug and text:
+            # Changes to options you have set in the app go first; drop the same line found by keywords.
+            options = notes.scan_options(text, await self._app_options(slug))
+            seen = {f.text for f in options}
+            findings = options + [f for f in findings if f.text not in seen]
         usage.mark_usage(findings, self._index)
         name = attrs.get("title") or attrs.get("friendly_name") or state.entity_id
         result = _result(
@@ -168,6 +174,17 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         result["has_notes"] = bool(text)
         return result
+
+    async def _app_options(self, slug: str) -> set[str]:
+        """Option names set in an app (add-on), via the Supervisor."""
+        try:
+            from homeassistant.components.hassio import get_supervisor_client
+
+            info = await get_supervisor_client(self.hass).addons.addon_info(slug)
+        except Exception:  # noqa: BLE001 - no Supervisor, or the app is gone
+            _LOGGER.debug("No options for app %s", slug, exc_info=True)
+            return set()
+        return notes.option_keys(info.options)
 
     async def _hacs_needs(self, release_url: str | None) -> str | None:
         """The Home Assistant version a HACS release needs, if newer than the running one."""

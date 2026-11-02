@@ -179,3 +179,32 @@ async def test_hacs_needs_newer_home_assistant(hass: HomeAssistant, aioclient_mo
     update = hass.states.get("sensor.update_guard_assessment").attributes["updates"][0]
     assert update["kind"] == "hacs" and update["level"] == "wait"
     assert update["findings"][0]["text"] == "Home Assistant 2099.1.0"
+
+
+async def test_app_option_changes(hass: HomeAssistant, aioclient_mock) -> None:
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock
+
+    _mock_github(aioclient_mock)
+    er.async_get(hass).async_get_or_create(
+        "update", "hassio", "45df7312_zigbee2mqtt_version_latest", suggested_object_id="zigbee2mqtt_update"
+    )
+    hass.states.async_set(
+        "update.zigbee2mqtt_update",
+        "on",
+        {
+            "installed_version": "2.14.3-1",
+            "latest_version": "3.0.0-1",
+            "title": "Zigbee2MQTT",
+            "release_summary": "- The `serial.adapter` option was renamed, use `adapter` under `serial`\n- Bump base image",
+        },
+    )
+    client = MagicMock()
+    client.addons.addon_info = AsyncMock(return_value=SimpleNamespace(options={"serial": {"adapter": "ember"}}))
+    with patch("homeassistant.components.hassio.get_supervisor_client", return_value=client):
+        await _setup(hass)
+    client.addons.addon_info.assert_awaited_with("45df7312_zigbee2mqtt")
+    app = hass.states.get("sensor.update_guard_assessment").attributes["updates"][0]
+    assert app["level"] == "wait"
+    assert app["findings"][0]["source"] == "option" and "adapter" in app["findings"][0]["title"]
+    assert len(app["findings"]) == 1

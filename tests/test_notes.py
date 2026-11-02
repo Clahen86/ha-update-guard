@@ -65,3 +65,19 @@ def test_keywords():
     mqtt = next(c for c in changes if c.title == "MQTT")
     assert "mqtt.publish" in mqtt.keywords and "mqtt.dump" in mqtt.keywords
     assert notes.keywords("the `for` option and `port`") == []
+
+
+def test_scan_options():
+    keys = notes.option_keys(
+        {"serial": {"port": "/dev/ttyUSB0", "adapter": "ember"}, "data_path": "/config/z2m", "ssl": False}
+    )
+    assert keys == {"serial", "port", "adapter", "data_path"}
+    text = """## 2.0.0
+- The `data_path` option has been renamed to `path`
+- Add support for new devices with a data_path display
+- Changed default `port` speed
+- `ssl` was removed
+"""
+    findings = notes.scan_options(text, keys)
+    assert [f.title for f in findings] == ["data_path", "port"]
+    assert findings[0].severe and not findings[1].severe

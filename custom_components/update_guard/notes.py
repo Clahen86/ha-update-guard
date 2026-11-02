@@ -178,3 +178,70 @@ def json_value(text: str | None, key: str) -> str | None:
         return None
     value = json.loads(text).get(key)
     return str(value) if value else None
+
+
+# A line that changes an option: renamed, removed, new default, ...
+_OPTION_CHANGE = re.compile(
+    r"renam|remov|deprecat|no longer|replac|changed?|moved?|default|now (?:requires?|must)|must be|breaking", re.I
+)
+_OPTION_SEVERE = re.compile(r"renam|remov|no longer|replac|breaking|must be", re.I)
+
+
+# Container names that show up in almost every changelog.
+_GENERIC_OPTIONS = {
+    "options",
+    "config",
+    "configuration",
+    "settings",
+    "active",
+    "enabled",
+    "name",
+    "type",
+    "value",
+    "data",
+}
+
+
+def option_keys(options: dict) -> set[str]:
+    """Names of the options you have set, also nested ones."""
+    keys = set()
+    for key, value in (options or {}).items():
+        if value in (None, "", [], {}, False):
+            continue
+        if str(key).lower() not in _GENERIC_OPTIONS:
+            keys.add(str(key))
+        if isinstance(value, dict):
+            keys |= option_keys(value)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    keys |= option_keys(item)
+    return keys
+
+
+def scan_options(text: str, keys: set[str]) -> list[Finding]:
+    """Changelog lines that change an option you have set."""
+    # Short names like `ssl` or `port` only count in backticks.
+    patterns = {
+        key: re.compile(rf"`{re.escape(key)}`" if len(key) < 5 and "_" not in key else rf"\b{re.escape(key)}\b", re.I)
+        for key in keys
+    }
+    findings = []
+    for line in (text or "").splitlines():
+        line = re.sub(r"^[\s>*#-]+", "", line).strip()
+        if not _OPTION_CHANGE.search(line):
+            continue
+        hits = sorted(key for key, pattern in patterns.items() if pattern.search(line))
+        if hits:
+            findings.append(
+                Finding(
+                    title=", ".join(hits),
+                    text=shorten(clean(line), 250),
+                    severe=bool(_OPTION_SEVERE.search(line)),
+                    source="option",
+                    keywords=keywords(line),
+                )
+            )
+        if len(findings) >= MAX_FINDINGS:
+            break
+    return findings
