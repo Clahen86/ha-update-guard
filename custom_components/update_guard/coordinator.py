@@ -34,6 +34,8 @@ from .const import (
     KIND_OTHER,
     LEVEL_CHECK,
     LEVEL_NONE,
+    LEVEL_SAFE,
+    LEVEL_UNKNOWN,
     LEVEL_WAIT,
     LEVELS,
     MAX_FINDINGS,
@@ -151,7 +153,16 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             findings.extend(await usage.repair_findings(self.hass, installed, latest))
         usage.mark_usage(findings, self._index)
         return _result(
-            KIND_CORE, _CORE_TITLE, entity_id, installed, latest, findings, url, ignored=ignored, missing=missing
+            KIND_CORE,
+            _CORE_TITLE,
+            entity_id,
+            installed,
+            latest,
+            findings,
+            url,
+            notes_missing=bool(missing),
+            ignored=ignored,
+            missing=missing,
         )
 
     async def _other(self, state, kind: str, entry: er.RegistryEntry | None) -> dict[str, Any]:
@@ -171,11 +182,16 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             findings = options + [f for f in findings if f.text not in seen]
         usage.mark_usage(findings, self._index)
         name = attrs.get("title") or attrs.get("friendly_name") or state.entity_id
-        result = _result(
-            kind, name, state.entity_id, attrs.get("installed_version"), latest, findings, attrs.get("release_url")
+        return _result(
+            kind,
+            name,
+            state.entity_id,
+            attrs.get("installed_version"),
+            latest,
+            findings,
+            attrs.get("release_url"),
+            notes_missing=not notes.has_content(text),
         )
-        result["has_notes"] = bool(text)
-        return result
 
     async def _option_keys(self, kind: str, entry: er.RegistryEntry | None) -> set[str]:
         """Names of the options you have set in the app or HACS integration being updated."""
@@ -320,17 +336,23 @@ def _result(
     latest: str | None,
     findings: list[notes.Finding],
     url: str | None,
+    notes_missing: bool = False,
     **extra: Any,
 ) -> dict[str, Any]:
     # Things to act on first, general notes last.
     findings.sort(key=lambda f: (not f.severe, f.general, not f.used_in))
+    level = notes.level_of(findings)
+    if notes_missing and level == LEVEL_SAFE:
+        # Nothing found because nothing could be read: that is not safe.
+        level = LEVEL_UNKNOWN
     return {
         "kind": kind,
         "name": name,
         "entity_id": entity_id,
         "installed": installed,
         "latest": latest,
-        "level": notes.level_of(findings),
+        "level": level,
+        "notes_missing": notes_missing,
         "release_url": url,
         "findings": [f.as_dict() for f in findings[:MAX_FINDINGS]],
         **extra,

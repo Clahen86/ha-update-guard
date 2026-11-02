@@ -17,6 +17,7 @@
         "state": {
           "wait": "Vent",
           "check": "Tjek først",
+          "unknown": "Ukendt – ingen release notes",
           "safe": "Sikker",
           "none": "Ingen opdateringer"
         },
@@ -68,7 +69,7 @@
     "notify_level": {
       "options": {
         "safe": "Alle opdateringer, også de sikre",
-        "check": "Kun dem, der skal tjekkes eller ventes med",
+        "check": "Kun dem, der skal kigges på (tjek, vent eller ukendt)",
         "wait": "Kun dem, der skal ventes med"
       }
     }

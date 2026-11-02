@@ -6,13 +6,18 @@
         "state": {
           "wait": "mdi:shield-alert",
           "check": "mdi:shield-search",
-          "none": "mdi:shield-outline"
+          "none": "mdi:shield-outline",
+          "unknown": "mdi:shield-off-outline"
         }
       },
-      "findings": { "default": "mdi:format-list-checks" }
+      "findings": {
+        "default": "mdi:format-list-checks"
+      }
     },
     "button": {
-      "check_now": { "default": "mdi:shield-refresh" }
+      "check_now": {
+        "default": "mdi:shield-refresh"
+      }
     }
   }
 }

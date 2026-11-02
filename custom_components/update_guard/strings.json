@@ -17,6 +17,7 @@
         "state": {
           "wait": "Wait",
           "check": "Check first",
+          "unknown": "Unknown – no release notes",
           "safe": "Safe",
           "none": "No updates"
         },
@@ -68,7 +69,7 @@
     "notify_level": {
       "options": {
         "safe": "All updates, also safe ones",
-        "check": "Only updates to check or wait with",
+        "check": "Only updates that need a look (check, wait or unknown)",
         "wait": "Only updates to wait with"
       }
     }

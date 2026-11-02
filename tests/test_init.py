@@ -256,7 +256,7 @@ async def test_notifications(hass: HomeAssistant, aioclient_mock) -> None:
             "installed_version": "2026.10.1",
             "latest_version": "2026.10.2",
             "title": "ESPHome",
-            "release_summary": "- Fix TLS",
+            "release_summary": "- Keep TLS 1.3 working for audio streams\n- Fix the host build on macOS",
         },
     )
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -322,3 +322,44 @@ async def test_options_flow(hass: HomeAssistant, aioclient_mock) -> None:
     )
     await hass.async_block_till_done()
     assert entry.options == {"notify": ["notify.mobile_app_phone"], "notify_level": "check"}
+
+
+async def test_missing_notes_are_unknown_not_safe(hass: HomeAssistant, aioclient_mock) -> None:
+    """No release notes, or notes that could not be fetched, must never look safe."""
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    # GitHub is down: the 2026.10 post can't be fetched.
+    aioclient_mock.get(RELEASE, status=503)
+    aioclient_mock.get(LATEST, status=503)
+    calls = async_mock_service(hass, "notify", "mobile_app_phone")
+    registry = er.async_get(hass)
+    registry.async_get_or_create(
+        "update", "hassio", "home_assistant_core_version_latest", suggested_object_id="home_assistant_core_update"
+    )
+    hass.states.async_set(
+        "update.home_assistant_core_update", "on", {"installed_version": "2026.9.3", "latest_version": "2026.10.4"}
+    )
+    registry.async_get_or_create("update", "esphome", "esp1", suggested_object_id="garage_firmware")
+    hass.states.async_set(
+        "update.garage_firmware",
+        "on",
+        {
+            "installed_version": "1",
+            "latest_version": "2",
+            "title": "Garage",
+            "release_url": "https://esphome.io/changelog",
+        },
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN, data={}, options={"notify": ["notify.mobile_app_phone"], "notify_level": "check"}
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("sensor.update_guard_assessment")
+    assert state.state == "unknown"
+    levels = {u["name"]: (u["level"], u["notes_missing"]) for u in state.attributes["updates"]}
+    assert levels == {"Home Assistant Core": ("unknown", True), "Garage": ("unknown", True)}
+    # "Only what needs a look" includes unknown.
+    assert len(calls) == 1 and "⚪ 2" in calls[0].data["title"]

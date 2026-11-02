@@ -10,9 +10,11 @@ SCAN_INTERVAL = timedelta(hours=6)
 # Overall assessment, worst first.
 LEVEL_WAIT = "wait"
 LEVEL_CHECK = "check"
+# No release notes could be read, so nothing is known. Never shown as safe.
+LEVEL_UNKNOWN = "unknown"
 LEVEL_SAFE = "safe"
 LEVEL_NONE = "none"
-LEVELS = [LEVEL_WAIT, LEVEL_CHECK, LEVEL_SAFE, LEVEL_NONE]
+LEVELS = [LEVEL_WAIT, LEVEL_CHECK, LEVEL_UNKNOWN, LEVEL_SAFE, LEVEL_NONE]
 
 KIND_CORE = "core"
 KIND_APP = "app"
@@ -55,9 +57,14 @@ LABELS = {
 
 CONF_NOTIFY = "notify"
 CONF_NOTIFY_LEVEL = "notify_level"
-# Lowest verdict that is announced: everything, or only check/wait, or only wait.
+# What is announced: everything, everything that needs a look (incl. unknown), or only wait.
 NOTIFY_ALL = "safe"
 NOTIFY_LEVELS = ["safe", "check", "wait"]
+NOTIFY_INCLUDES = {
+    "safe": {LEVEL_WAIT, LEVEL_CHECK, LEVEL_UNKNOWN, LEVEL_SAFE},
+    "check": {LEVEL_WAIT, LEVEL_CHECK, LEVEL_UNKNOWN},
+    "wait": {LEVEL_WAIT},
+}
 
 # Notification texts (sent from code, so not in translations/).
 NOTIFY_TEXT = {
@@ -65,7 +72,9 @@ NOTIFY_TEXT = {
         "wait": "Wait",
         "check": "Check first",
         "safe": "Safe",
+        "unknown": "Unknown",
         "nothing": "Nothing in the release notes touches your setup.",
+        "no_notes": "No release notes could be read. Check it yourself before you update.",
         "updates": "{n} updates",
         "used_in": "used in",
     },
@@ -73,7 +82,9 @@ NOTIFY_TEXT = {
         "wait": "Vent",
         "check": "Tjek først",
         "safe": "Sikker",
+        "unknown": "Ukendt",
         "nothing": "Intet i release notes rører din opsætning.",
+        "no_notes": "Der var ingen release notes at læse. Tjek selv, før du opdaterer.",
         "updates": "{n} opdateringer",
         "used_in": "bruges i",
     },

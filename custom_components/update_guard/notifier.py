@@ -14,14 +14,16 @@ from .const import (
     DOMAIN,
     LEVEL_CHECK,
     LEVEL_SAFE,
+    LEVEL_UNKNOWN,
     LEVEL_WAIT,
     LEVELS,
     NOTIFY_ALL,
+    NOTIFY_INCLUDES,
     NOTIFY_TEXT,
 )
 
 _LOGGER = logging.getLogger(__name__)
-_ICON = {LEVEL_WAIT: "🔴", LEVEL_CHECK: "🟡", LEVEL_SAFE: "🟢"}
+_ICON = {LEVEL_WAIT: "🔴", LEVEL_CHECK: "🟡", LEVEL_UNKNOWN: "⚪", LEVEL_SAFE: "🟢"}
 _REPAIRS = "/config/repairs"
 
 
@@ -49,8 +51,8 @@ class Notifier:
             self.sent[_key(update)] = update["level"]
         self.store.async_delay_save(lambda: {"sent": self.sent}, 5)
 
-        minimum = options.get(CONF_NOTIFY_LEVEL, NOTIFY_ALL)
-        new = [u for u in new if LEVELS.index(u["level"]) <= LEVELS.index(minimum)]
+        wanted = NOTIFY_INCLUDES.get(options.get(CONF_NOTIFY_LEVEL, NOTIFY_ALL), NOTIFY_INCLUDES[NOTIFY_ALL])
+        new = [u for u in new if u["level"] in wanted]
         if not targets or not new:
             return
         title, message = build_message(new, self.hass.config.language)
@@ -80,10 +82,11 @@ def build_message(updates: list[dict[str, Any]], language: str) -> tuple[str, st
     if len(updates) == 1:
         update = updates[0]
         title = f"{_ICON[update['level']]} {update['name']} {update['latest']} – {text[update['level']]}"
-        return title, "\n".join(_points(update, text, 3)) or text["nothing"]
+        empty = text["no_notes"] if update["level"] == LEVEL_UNKNOWN else text["nothing"]
+        return title, "\n".join(_points(update, text, 3)) or empty
     counts = " · ".join(
         f"{_ICON[level]} {n}"
-        for level in (LEVEL_WAIT, LEVEL_CHECK, LEVEL_SAFE)
+        for level in (LEVEL_WAIT, LEVEL_CHECK, LEVEL_UNKNOWN, LEVEL_SAFE)
         if (n := sum(u["level"] == level for u in updates))
     )
     title = f"{text['updates'].format(n=len(updates))}: {counts}"

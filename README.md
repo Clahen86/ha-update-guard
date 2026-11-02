@@ -30,6 +30,9 @@ Every month Home Assistant ships changes that can break things, and so do apps (
 - 🟢 **Safe** – nothing in the notes touches your setup.
 - 🟡 **Check first** – something you use changes. Read the points before you update.
 - 🔴 **Wait** – something you use is removed, renamed or needs a newer Home Assistant.
+- ⚪ **Unknown** – there were no release notes to read (or they couldn't be fetched), so nothing can be said. Never shown as safe.
+
+> **Green is not a guarantee.** It means nothing in the release notes touches your setup. Changes that the developers didn't write down can't be found. Keep taking backups.
 
 You see it in three places: the sensor, **Settings → Repairs** (one repair per risky update, with what to look at and a link to the release notes), and the attributes of the sensor for dashboards and automations.
 
@@ -58,7 +61,7 @@ Entity IDs follow your Home Assistant language. In English:
 
 | Entity | What |
 | --- | --- |
-| `sensor.update_guard_assessment` | `safe`, `check`, `wait` or `none`. The `updates` attribute has the details for each update. |
+| `sensor.update_guard_assessment` | `safe`, `check`, `wait`, `unknown` or `none`. The `updates` attribute has the details for each update. |
 | `sensor.update_guard_things_to_check` | Number of changes that touch your setup. |
 | `button.update_guard_check_now` | Check again right away. |
 
@@ -89,6 +92,8 @@ content: >
 - Core matching is by integration. "MQTT changed" means you use MQTT, not necessarily the exact feature that changed.
 - App and HACS changelogs are free text, so they're scanned for keywords. That can give false alarms, and a change that isn't described can't be found.
 - "Used in" only finds names written as code (`like_this`) in the notes.
+- Many firmware updates and the Home Assistant OS update come without real release notes. They show as ⚪ Unknown.
+- Patch releases of Home Assistant (e.g. 2026.10.4 → 2026.10.5) only contain bug fixes by policy and are not checked line by line.
 - Integrations installed by hand (not via HACS) have no update entity, so only their log warnings are seen.
 
 **What's next?** A before/after check that tells you what stopped working right after an update.
@@ -111,6 +116,9 @@ Hver måned kommer der ændringer i Home Assistant, apps og HACS-integrationer, 
 - 🟢 **Sikker:** Intet i release notes rører din opsætning.
 - 🟡 **Tjek først:** Noget, du bruger, bliver ændret.
 - 🔴 **Vent:** Noget, du bruger, bliver fjernet eller omdøbt, eller opdateringen kræver en nyere HA.
+- ⚪ **Ukendt:** Der var ingen release notes at læse, eller de kunne ikke hentes. Den bliver aldrig vist som sikker.
+
+> **Grøn er ikke en garanti.** Den betyder, at intet i release notes rører din opsætning. Ændringer, som udviklerne ikke har skrevet ned, kan den ikke finde. Tag stadig backup.
 
 Du ser vurderingen på sensoren og under **Indstillinger → Reparationer**.
 

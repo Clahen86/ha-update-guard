@@ -163,6 +163,12 @@ def scan_changelog(text: str) -> list[Finding]:
     return findings
 
 
+def has_content(text: str | None) -> bool:
+    """Release notes with actual text, not just a link or a reboot notice."""
+    text = re.sub(r"<[^>]+>|\[([^\]]*)\]\([^)]*\)|https?://\S+", " ", text or "")
+    return len(re.sub(r"\W+", "", text)) >= 30
+
+
 def level_of(findings: list[Finding]) -> str:
     """Overall level for one update."""
     if any(f.severe and not f.general for f in findings):

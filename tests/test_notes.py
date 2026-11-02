@@ -81,3 +81,10 @@ def test_scan_options():
     findings = notes.scan_options(text, keys)
     assert [f.title for f in findings] == ["data_path", "port"]
     assert findings[0].severe and not findings[1].severe
+
+
+def test_has_content():
+    assert not notes.has_content(None)
+    assert not notes.has_content("<ha-alert alert-type='info'>The system will reboot</ha-alert>")
+    assert not notes.has_content("[**Read release announcement**](https://esphome.io/changelog/2026.10.0)")
+    assert notes.has_content("- Keep TLS 1.3 working for audio streams")
