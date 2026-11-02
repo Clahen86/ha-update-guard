@@ -58,3 +58,10 @@ def test_scan_changelog():
     assert findings[0].severe and not findings[1].severe
     assert notes.level_of(findings) == "wait"
     assert notes.scan_changelog("- Bump base image\n- Fix typo") == []
+
+
+def test_keywords():
+    changes = notes.parse_breaking_changes(POST)
+    mqtt = next(c for c in changes if c.title == "MQTT")
+    assert "mqtt.publish" in mqtt.keywords and "mqtt.dump" in mqtt.keywords
+    assert notes.keywords("the `for` option and `port`") == []

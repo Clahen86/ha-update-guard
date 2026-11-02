@@ -16,13 +16,37 @@ LEVELS = [LEVEL_WAIT, LEVEL_CHECK, LEVEL_SAFE, LEVEL_NONE]
 
 KIND_CORE = "core"
 KIND_APP = "app"
+KIND_HACS = "hacs"
 KIND_OTHER = "other"
 
 GITHUB_RELEASE_TAG = "https://api.github.com/repos/home-assistant/core/releases/tags/{tag}"
 GITHUB_RELEASE_LATEST = "https://api.github.com/repos/home-assistant/core/releases/latest"
 RAW_POST = "https://raw.githubusercontent.com/home-assistant/home-assistant.io/current/source/_posts/{slug}.markdown"
+HACS_JSON = "https://raw.githubusercontent.com/{owner}/{repo}/{tag}/hacs.json"
 USER_AGENT = "HomeAssistant-UpdateGuard"
 
 # Keep state attributes small; the full text is in the release notes.
 MAX_TEXT = 400
 MAX_FINDINGS = 12
+
+# Words inside repair texts that are built in code. Everything else is in translations/.
+LABELS = {
+    "en": {
+        "log": "Warning in the log:",
+        "repair": "Repair:",
+        "hacs": "Needs",
+        "used_in": "Used in",
+        "automation": "Automation",
+        "script": "Script",
+        "dashboard": "Dashboard",
+    },
+    "da": {
+        "log": "Advarsel i loggen:",
+        "repair": "Reparation:",
+        "hacs": "Kræver",
+        "used_in": "Bruges i",
+        "automation": "Automatisering",
+        "script": "Script",
+        "dashboard": "Dashboard",
+    },
+}

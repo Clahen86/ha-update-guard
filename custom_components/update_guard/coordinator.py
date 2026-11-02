@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import aiohttp
+from awesomeversion import AwesomeVersion, AwesomeVersionException
 
 from homeassistant.components.update import UpdateEntityFeature
 from homeassistant.components.update.const import DATA_COMPONENT, DOMAIN as UPDATE_DOMAIN
@@ -18,13 +20,16 @@ from homeassistant.helpers.event import async_track_state_change_filtered, Track
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from . import notes
+from . import notes, usage
 from .const import (
+    HACS_JSON,
+    LABELS,
     DOMAIN,
     GITHUB_RELEASE_LATEST,
     GITHUB_RELEASE_TAG,
     KIND_APP,
     KIND_CORE,
+    KIND_HACS,
     KIND_OTHER,
     LEVEL_CHECK,
     LEVEL_NONE,
@@ -38,6 +43,7 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 _CORE_TITLE = "Home Assistant Core"
+_GITHUB_RELEASE = re.compile(r"github\.com/([^/]+)/([^/]+)/releases/(?:tag/)?([^/?#]+)")
 _TIMEOUT = aiohttp.ClientTimeout(total=30)
 
 type UpdateGuardConfigEntry = ConfigEntry[UpdateGuardCoordinator]
@@ -55,6 +61,10 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._posts: dict[tuple[int, int], tuple[list[notes.Finding], str] | None] = {}
         # Changelogs per (entity_id, latest_version).
         self._changelogs: dict[tuple[str, str], str | None] = {}
+        # Minimum Home Assistant version of a HACS release: release url -> version.
+        self._hacs_min: dict[str, str | None] = {}
+        self.deprecations = usage.DeprecationLog(hass)
+        self._index: list[tuple[str, str, str]] = []
 
     @callback
     def async_watch_updates(self) -> None:
@@ -76,6 +86,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         registry = er.async_get(self.hass)
+        self._index = await usage.config_index(self.hass)
         updates: list[dict[str, Any]] = []
         core_seen = False
 
@@ -93,9 +104,10 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     )
                 )
                 continue
-            updates.append(
-                await self._other(state, KIND_APP if platform == "hassio" and _is_app(entry) else KIND_OTHER)
+            kind = (
+                KIND_APP if platform == "hassio" and _is_app(entry) else KIND_HACS if platform == "hacs" else KIND_OTHER
             )
+            updates.append(await self._other(state, kind))
 
         # Docker/Core installs have no core update entity: ask GitHub instead.
         if not core_seen and (latest := await self._latest_core()) and notes.months_between(HA_VERSION, latest):
@@ -130,6 +142,11 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 finding.title = f"{year}.{month}: {finding.title}"
             findings.extend(relevant)
             ignored += skipped
+        if latest:
+            # Things Home Assistant itself already warned about.
+            findings.extend(self.deprecations.findings(installed, latest))
+            findings.extend(await usage.repair_findings(self.hass, installed, latest))
+        usage.mark_usage(findings, self._index)
         return _result(
             KIND_CORE, _CORE_TITLE, entity_id, installed, latest, findings, url, ignored=ignored, missing=missing
         )
@@ -139,12 +156,36 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         latest = attrs.get("latest_version") or ""
         text = await self._changelog(state.entity_id, latest, attrs)
         findings = notes.scan_changelog(text or "")
+        if kind == KIND_HACS and (needs := await self._hacs_needs(attrs.get("release_url"))):
+            findings.insert(
+                0,
+                notes.Finding(title="", text=f"Home Assistant {needs}", severe=True, source="hacs", keywords=[]),
+            )
+        usage.mark_usage(findings, self._index)
         name = attrs.get("title") or attrs.get("friendly_name") or state.entity_id
         result = _result(
             kind, name, state.entity_id, attrs.get("installed_version"), latest, findings, attrs.get("release_url")
         )
         result["has_notes"] = bool(text)
         return result
+
+    async def _hacs_needs(self, release_url: str | None) -> str | None:
+        """The Home Assistant version a HACS release needs, if newer than the running one."""
+        match = _GITHUB_RELEASE.search(release_url or "")
+        if not match:
+            return None
+        if release_url not in self._hacs_min:
+            owner, repo, tag = match.groups()
+            text = await self._get_text(HACS_JSON.format(owner=owner, repo=repo, tag=tag))
+            try:
+                self._hacs_min[release_url] = notes.json_value(text, "homeassistant")
+            except ValueError:
+                self._hacs_min[release_url] = None
+        minimum = self._hacs_min[release_url]
+        try:
+            return minimum if minimum and AwesomeVersion(minimum) > AwesomeVersion(HA_VERSION) else None
+        except AwesomeVersionException:
+            return None
 
     async def _changelog(self, entity_id: str, latest: str, attrs: dict) -> str | None:
         key = (entity_id, latest)
@@ -207,11 +248,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
             issue_id = f"risk_{update['entity_id'] or 'core'}"
             wanted.add(issue_id)
-            lines = [
-                f"- **{f['title']}** {f['text']}" if f["title"] else f"- {f['text']}"
-                for f in update["findings"]
-                if not f["general"]
-            ]
+            lines = [_line(f, self.hass.config.language) for f in update["findings"] if not f["general"]]
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
@@ -245,7 +282,7 @@ def _result(
     **extra: Any,
 ) -> dict[str, Any]:
     # Things to act on first, general notes last.
-    findings.sort(key=lambda f: (not f.severe, f.general))
+    findings.sort(key=lambda f: (not f.severe, f.general, not f.used_in))
     return {
         "kind": kind,
         "name": name,
@@ -257,6 +294,19 @@ def _result(
         "findings": [f.as_dict() for f in findings[:MAX_FINDINGS]],
         **extra,
     }
+
+
+def _line(finding: dict[str, Any], language: str) -> str:
+    """One finding as a markdown bullet for the repair, in the user's language."""
+    labels = LABELS.get(language.split("-")[0], LABELS["en"])
+    prefix = labels.get(finding["source"], "")
+    title = finding["title"]
+    head = " ".join(p for p in (prefix, f"**{title}**" if title else "") if p)
+    line = f"- {head} {finding['text']}" if head else f"- {finding['text']}"
+    if finding["used_in"]:
+        places = [labels.get(kind, kind) + ":" + name for kind, name in (u.split(":", 1) for u in finding["used_in"])]
+        line += f"\n  {labels['used_in']}: " + ", ".join(places)
+    return line
 
 
 def _is_app(entry: er.RegistryEntry | None) -> bool:

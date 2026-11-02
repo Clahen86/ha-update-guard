@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+import json
 import re
 
 from .const import LEVEL_CHECK, LEVEL_SAFE, LEVEL_WAIT, MAX_FINDINGS, MAX_TEXT
@@ -17,6 +18,8 @@ _LIQUID = re.compile(r"{%.*?%}", re.S)
 _MD_LINK = re.compile(r"\[([^\]]+)\]\[[^\]]*\]|\[([^\]]+)\]\([^)]*\)")
 _BLOG = re.compile(r"home-assistant\.io/blog/(\d{4})/(\d{2})/(\d{2})/([a-z0-9-]+)")
 _VERSION = re.compile(r"^(\d{4})\.(\d{1,2})")
+# `mqtt.publish`, `hours_priced_equal_or_lower`, `sensor.x_y`; plain words like `for` are too common.
+_CODE = re.compile(r"`([A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)`")
 
 # The integration itself goes away or stops working: don't update yet.
 _SEVERE = re.compile(
@@ -42,6 +45,11 @@ class Finding:
     domains: list[str] = field(default_factory=list)
     general: bool = False
     severe: bool = False
+    # release, changelog, repair, log or hacs
+    source: str = "release"
+    # Names from the text (actions, options, sensors) to look for in your config.
+    keywords: list[str] = field(default_factory=list)
+    used_in: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -92,6 +100,12 @@ def plain(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def keywords(text: str) -> list[str]:
+    """Code names in backticks that are specific enough to search for."""
+    found = {m for m in _CODE.findall(text) if len(m) >= 6 and ("." in m or "_" in m)}
+    return sorted(found)[:10]
+
+
 def shorten(text: str, limit: int = MAX_TEXT) -> str:
     if len(text) <= limit:
         return text
@@ -114,6 +128,7 @@ def parse_breaking_changes(post: str) -> list[Finding]:
                 domains=domains,
                 general=not domains,
                 severe=bool(_SEVERE.search(text)),
+                keywords=keywords(text),
             )
         )
     return findings
@@ -134,7 +149,15 @@ def scan_changelog(text: str) -> list[Finding]:
         line = re.sub(r"^[\s>*#-]+", "", line).strip()
         if len(line) < 8 or not _KEYWORD.search(line):
             continue
-        findings.append(Finding(title="", text=shorten(clean(line), 250), severe=bool(_STRONG_KEYWORD.search(line))))
+        findings.append(
+            Finding(
+                title="",
+                text=shorten(clean(line), 250),
+                severe=bool(_STRONG_KEYWORD.search(line)),
+                source="changelog",
+                keywords=keywords(line),
+            )
+        )
         if len(findings) >= MAX_FINDINGS:
             break
     return findings
@@ -147,3 +170,11 @@ def level_of(findings: list[Finding]) -> str:
     if any(not f.general for f in findings):
         return LEVEL_CHECK
     return LEVEL_SAFE
+
+
+def json_value(text: str | None, key: str) -> str | None:
+    """A string value from a JSON document, e.g. hacs.json. Raises ValueError if broken."""
+    if not text:
+        return None
+    value = json.loads(text).get(key)
+    return str(value) if value else None

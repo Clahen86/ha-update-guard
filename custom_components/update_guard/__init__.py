@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
@@ -14,6 +16,10 @@ PLATFORMS = [Platform.BUTTON, Platform.SENSOR]
 
 async def async_setup_entry(hass: HomeAssistant, entry: UpdateGuardConfigEntry) -> bool:
     coordinator = UpdateGuardCoordinator(hass, entry)
+    await coordinator.deprecations.async_load()
+    root = logging.getLogger()
+    root.addHandler(coordinator.deprecations)
+    entry.async_on_unload(lambda: root.removeHandler(coordinator.deprecations))
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
     coordinator.async_watch_updates()
