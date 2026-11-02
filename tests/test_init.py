@@ -208,3 +208,32 @@ async def test_app_option_changes(hass: HomeAssistant, aioclient_mock) -> None:
     assert app["level"] == "wait"
     assert app["findings"][0]["source"] == "option" and "adapter" in app["findings"][0]["title"]
     assert len(app["findings"]) == 1
+
+
+async def test_hacs_integration_option_changes(hass: HomeAssistant, aioclient_mock) -> None:
+    from types import SimpleNamespace
+
+    _mock_github(aioclient_mock)
+    aioclient_mock.get("https://raw.githubusercontent.com/someone/solar/v5.0.0/hacs.json", json={})
+    MockConfigEntry(domain="solar", data={"api_key": "secret"}, options={"damp_factor": 0.8}).add_to_hass(hass)
+    repo = SimpleNamespace(data=SimpleNamespace(category="integration", domain="solar"))
+    hass.data["hacs"] = SimpleNamespace(
+        repositories=SimpleNamespace(get_by_id=lambda rid: repo if rid == "777" else None)
+    )
+    er.async_get(hass).async_get_or_create("update", "hacs", "777", suggested_object_id="solar_update")
+    hass.states.async_set(
+        "update.solar_update",
+        "on",
+        {
+            "installed_version": "v4.0.0",
+            "latest_version": "v5.0.0",
+            "title": "Solar",
+            "release_url": "https://github.com/someone/solar/releases/v5.0.0",
+            "release_summary": "- `damp_factor` has been replaced by per-hour dampening\n- New sensors",
+        },
+    )
+    await _setup(hass)
+    update = hass.states.get("sensor.update_guard_assessment").attributes["updates"][0]
+    assert update["kind"] == "hacs" and update["level"] == "wait"
+    assert update["findings"][0]["source"] == "option" and update["findings"][0]["title"] == "damp_factor"
+    assert "secret" not in str(update)  # only option names, never values

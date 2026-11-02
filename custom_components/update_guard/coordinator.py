@@ -107,8 +107,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             kind = (
                 KIND_APP if platform == "hassio" and _is_app(entry) else KIND_HACS if platform == "hacs" else KIND_OTHER
             )
-            slug = entry.unique_id.removesuffix("_version_latest") if kind == KIND_APP else None
-            updates.append(await self._other(state, kind, slug))
+            updates.append(await self._other(state, kind, entry))
 
         # Docker/Core installs have no core update entity: ask GitHub instead.
         if not core_seen and (latest := await self._latest_core()) and notes.months_between(HA_VERSION, latest):
@@ -152,7 +151,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             KIND_CORE, _CORE_TITLE, entity_id, installed, latest, findings, url, ignored=ignored, missing=missing
         )
 
-    async def _other(self, state, kind: str, slug: str | None = None) -> dict[str, Any]:
+    async def _other(self, state, kind: str, entry: er.RegistryEntry | None) -> dict[str, Any]:
         attrs = state.attributes
         latest = attrs.get("latest_version") or ""
         text = await self._changelog(state.entity_id, latest, attrs)
@@ -162,9 +161,9 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 0,
                 notes.Finding(title="", text=f"Home Assistant {needs}", severe=True, source="hacs", keywords=[]),
             )
-        if slug and text:
-            # Changes to options you have set in the app go first; drop the same line found by keywords.
-            options = notes.scan_options(text, await self._app_options(slug))
+        if text and (keys := await self._option_keys(kind, entry)):
+            # Changes to options you have set go first; drop the same line found by keywords.
+            options = notes.scan_options(text, keys)
             seen = {f.text for f in options}
             findings = options + [f for f in findings if f.text not in seen]
         usage.mark_usage(findings, self._index)
@@ -174,6 +173,28 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         result["has_notes"] = bool(text)
         return result
+
+    async def _option_keys(self, kind: str, entry: er.RegistryEntry | None) -> set[str]:
+        """Names of the options you have set in the app or HACS integration being updated."""
+        if entry is None:
+            return set()
+        if kind == KIND_APP:
+            return await self._app_options(entry.unique_id.removesuffix("_version_latest"))
+        if kind == KIND_HACS and (domain := self._hacs_domain(entry.unique_id)):
+            keys: set[str] = set()
+            for config_entry in self.hass.config_entries.async_entries(domain):
+                keys |= notes.option_keys(dict(config_entry.data)) | notes.option_keys(dict(config_entry.options))
+            return keys
+        return set()
+
+    def _hacs_domain(self, repository_id: str) -> str | None:
+        """Integration domain of a HACS repository; None for cards, themes etc."""
+        try:
+            repository = self.hass.data["hacs"].repositories.get_by_id(repository_id)
+            data = repository.data
+        except (KeyError, AttributeError):
+            return None
+        return data.domain if data.category == "integration" else None
 
     async def _app_options(self, slug: str) -> set[str]:
         """Option names set in an app (add-on), via the Supervisor."""
