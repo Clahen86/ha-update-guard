@@ -21,8 +21,12 @@
           "none": "No updates"
         },
         "state_attributes": {
-          "updates": { "name": "Updates" },
-          "checked": { "name": "Checked" }
+          "updates": {
+            "name": "Updates"
+          },
+          "checked": {
+            "name": "Checked"
+          }
         }
       },
       "findings": {
@@ -43,6 +47,30 @@
     "update_check": {
       "title": "Check before updating {name} {latest}",
       "description": "Updating {name} from {installed} to {latest} changes something you use:\n\n{findings}\n\nRead the release notes before you update."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Notifications",
+        "description": "Get a notification on your phone when a new update shows up, with the verdict. Tap it to open Repairs.",
+        "data": {
+          "notify": "Send to",
+          "notify_level": "Notify about"
+        },
+        "data_description": {
+          "notify": "One or more, e.g. notify.mobile_app_your_phone. Leave empty for no notifications."
+        }
+      }
+    }
+  },
+  "selector": {
+    "notify_level": {
+      "options": {
+        "safe": "All updates, also safe ones",
+        "check": "Only updates to check or wait with",
+        "wait": "Only updates to wait with"
+      }
     }
   }
 }

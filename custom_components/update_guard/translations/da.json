@@ -21,8 +21,12 @@
           "none": "Ingen opdateringer"
         },
         "state_attributes": {
-          "updates": { "name": "Opdateringer" },
-          "checked": { "name": "Tjekket" }
+          "updates": {
+            "name": "Opdateringer"
+          },
+          "checked": {
+            "name": "Tjekket"
+          }
         }
       },
       "findings": {
@@ -43,6 +47,30 @@
     "update_check": {
       "title": "Tjek før du opdaterer {name} {latest}",
       "description": "Opdateringen af {name} fra {installed} til {latest} ændrer noget, du bruger:\n\n{findings}\n\nLæs release notes, før du opdaterer. Teksten fra udviklerne er på engelsk."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Beskeder",
+        "description": "Få en besked på telefonen, når der kommer en ny opdatering, med vurderingen. Tryk på den for at åbne Reparationer.",
+        "data": {
+          "notify": "Send til",
+          "notify_level": "Besked om"
+        },
+        "data_description": {
+          "notify": "Én eller flere, fx notify.mobile_app_din_telefon. Lad den være tom for ingen beskeder."
+        }
+      }
+    }
+  },
+  "selector": {
+    "notify_level": {
+      "options": {
+        "safe": "Alle opdateringer, også de sikre",
+        "check": "Kun dem, der skal tjekkes eller ventes med",
+        "wait": "Kun dem, der skal ventes med"
+      }
     }
   }
 }

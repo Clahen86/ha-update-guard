@@ -43,6 +43,15 @@ You see it in three places: the sensor, **Settings → Repairs** (one repair per
 
 That's it. It checks every 6 hours and right away whenever a new update shows up.
 
+### Notifications on your phone
+
+Go to **Settings → Devices & services → Update Guard → Configure** and pick one or more phones (`notify.mobile_app_…`). Every new update then sends a notification with the verdict, for example:
+
+> **🔴 Home Assistant Core 2026.11.0 – Wait**
+> 2026.11: MQTT: The `mqtt.publish` action now requires … (used in: Doorbell to broker)
+
+Tap it to open Repairs. Each version is announced once (again only if the verdict gets worse), and several updates at once come as one message. You can choose to hear about all updates, only those to check, or only those to wait with.
+
 ### Entities
 
 Entity IDs follow your Home Assistant language. In English:
@@ -52,20 +61,6 @@ Entity IDs follow your Home Assistant language. In English:
 | `sensor.update_guard_assessment` | `safe`, `check`, `wait` or `none`. The `updates` attribute has the details for each update. |
 | `sensor.update_guard_things_to_check` | Number of changes that touch your setup. |
 | `button.update_guard_check_now` | Check again right away. |
-
-### Example: get a notification
-
-```yaml
-triggers:
-  - trigger: state
-    entity_id: sensor.update_guard_assessment
-    to: wait
-actions:
-  - action: notify.notify
-    data:
-      title: Wait with the update
-      message: Update Guard found something that will break. See Settings → Repairs.
-```
 
 ### Example: dashboard card
 
@@ -129,7 +124,11 @@ Du ser vurderingen på sensoren og under **Indstillinger → Reparationer**.
 
 Den tjekker hver 6. time og med det samme, når der kommer en ny opdatering.
 
-På dansk hedder enhederne `sensor.update_guard_vurdering`, `sensor.update_guard_ting_at_tjekke` og `button.update_guard_tjek_nu`. Eksemplerne ovenfor virker også på dansk, når du skifter navnene ud.
+### Besked på telefonen
+
+Gå til **Indstillinger → Enheder og tjenester → Update Guard → Konfigurer**, og vælg en eller flere telefoner (`notify.mobile_app_…`). Så får du en besked med vurderingen, hver gang der kommer en ny opdatering. Tryk på den for at åbne Reparationer. Du kan vælge, om du vil have besked om alle opdateringer, kun dem, der skal tjekkes, eller kun dem, du skal vente med.
+
+På dansk hedder enhederne `sensor.update_guard_vurdering`, `sensor.update_guard_ting_at_tjekke` og `button.update_guard_tjek_nu`. Dashboard-eksemplet ovenfor virker også på dansk, når du skifter navnene ud.
 
 Menuer og beskeder er på dansk. Selve teksten fra udviklerne er på engelsk.
 

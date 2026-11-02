@@ -237,3 +237,88 @@ async def test_hacs_integration_option_changes(hass: HomeAssistant, aioclient_mo
     assert update["kind"] == "hacs" and update["level"] == "wait"
     assert update["findings"][0]["source"] == "option" and update["findings"][0]["title"] == "damp_factor"
     assert "secret" not in str(update)  # only option names, never values
+
+
+async def test_notifications(hass: HomeAssistant, aioclient_mock) -> None:
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    _mock_github(aioclient_mock)
+    calls = async_mock_service(hass, "notify", "mobile_app_phone")
+    entry = MockConfigEntry(
+        domain=DOMAIN, data={}, options={"notify": ["notify.mobile_app_phone"], "notify_level": "safe"}
+    )
+    entry.add_to_hass(hass)
+    er.async_get(hass).async_get_or_create("update", "esphome", "esp1", suggested_object_id="esphome_update")
+    hass.states.async_set(
+        "update.esphome_update",
+        "on",
+        {
+            "installed_version": "2026.10.1",
+            "latest_version": "2026.10.2",
+            "title": "ESPHome",
+            "release_summary": "- Fix TLS",
+        },
+    )
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert len(calls) == 1
+    assert calls[0].data["title"] == "🟢 ESPHome 2026.10.2 – Safe"
+    assert calls[0].data["data"]["url"] == "/config/repairs"
+
+    # Same version again: no new message.
+    await entry.runtime_data.async_refresh()
+    assert len(calls) == 1
+
+    # A new version with a breaking change is announced.
+    hass.states.async_set(
+        "update.esphome_update",
+        "on",
+        {
+            "installed_version": "2026.10.1",
+            "latest_version": "2026.11.0",
+            "title": "ESPHome",
+            "release_summary": "- BREAKING: `wifi.fast_connect` was removed",
+        },
+    )
+    await hass.async_block_till_done()
+    await entry.runtime_data.async_refresh()
+    assert len(calls) == 2
+    assert calls[1].data["title"].startswith("🔴 ESPHome 2026.11.0")
+    assert "wifi.fast_connect" in calls[1].data["message"]
+
+
+async def test_notify_only_wait_and_combined(hass: HomeAssistant, aioclient_mock) -> None:
+    from custom_components.update_guard.notifier import build_message
+
+    title, message = build_message(
+        [
+            {"name": "A", "latest": "1", "level": "safe", "findings": []},
+            {
+                "name": "B",
+                "latest": "2",
+                "level": "wait",
+                "findings": [{"title": "x_y", "text": "removed", "general": False, "used_in": ["automation: Lys"]}],
+            },
+        ],
+        "da",
+    )
+    assert title == "2 opdateringer: 🔴 1 · 🟢 1"
+    assert message.splitlines()[0] == "🔴 B 2"
+    assert "bruges i: Lys" in message
+
+
+async def test_options_flow(hass: HomeAssistant, aioclient_mock) -> None:
+    from pytest_homeassistant_custom_component.common import async_mock_service
+
+    _mock_github(aioclient_mock)
+    async_mock_service(hass, "notify", "mobile_app_phone")
+    entry = await _setup(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] == "form"
+    options = result["data_schema"].schema["notify"].config["options"]
+    assert "notify.mobile_app_phone" in options
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"notify": ["notify.mobile_app_phone"], "notify_level": "check"}
+    )
+    await hass.async_block_till_done()
+    assert entry.options == {"notify": ["notify.mobile_app_phone"], "notify_level": "check"}

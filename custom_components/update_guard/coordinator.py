@@ -21,6 +21,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from . import notes, usage
+from .notifier import Notifier
 from .const import (
     HACS_JSON,
     LABELS,
@@ -65,6 +66,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._hacs_min: dict[str, str | None] = {}
         self.deprecations = usage.DeprecationLog(hass)
         self._index: list[tuple[str, str, str]] = []
+        self.notifier = Notifier(hass)
 
     @callback
     def async_watch_updates(self) -> None:
@@ -116,6 +118,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         updates.sort(key=lambda u: (LEVELS.index(u["level"]), u["kind"] != KIND_CORE, u["name"].lower()))
         level = updates[0]["level"] if updates else LEVEL_NONE
         self._sync_issues(updates)
+        await self.notifier.async_notify(updates, dict(self.config_entry.options))
         return {
             "level": level,
             "updates": updates,

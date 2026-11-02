@@ -17,6 +17,7 @@ PLATFORMS = [Platform.BUTTON, Platform.SENSOR]
 async def async_setup_entry(hass: HomeAssistant, entry: UpdateGuardConfigEntry) -> bool:
     coordinator = UpdateGuardCoordinator(hass, entry)
     await coordinator.deprecations.async_load()
+    await coordinator.notifier.async_load()
     root = logging.getLogger()
     root.addHandler(coordinator.deprecations)
     entry.async_on_unload(lambda: root.removeHandler(coordinator.deprecations))
@@ -24,7 +25,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: UpdateGuardConfigEntry) 
     entry.runtime_data = coordinator
     coordinator.async_watch_updates()
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(_options_changed))
     return True
+
+
+async def _options_changed(hass: HomeAssistant, entry: UpdateGuardConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: UpdateGuardConfigEntry) -> bool:

@@ -52,3 +52,29 @@ LABELS = {
         "dashboard": "Dashboard",
     },
 }
+
+CONF_NOTIFY = "notify"
+CONF_NOTIFY_LEVEL = "notify_level"
+# Lowest verdict that is announced: everything, or only check/wait, or only wait.
+NOTIFY_ALL = "safe"
+NOTIFY_LEVELS = ["safe", "check", "wait"]
+
+# Notification texts (sent from code, so not in translations/).
+NOTIFY_TEXT = {
+    "en": {
+        "wait": "Wait",
+        "check": "Check first",
+        "safe": "Safe",
+        "nothing": "Nothing in the release notes touches your setup.",
+        "updates": "{n} updates",
+        "used_in": "used in",
+    },
+    "da": {
+        "wait": "Vent",
+        "check": "Tjek først",
+        "safe": "Sikker",
+        "nothing": "Intet i release notes rører din opsætning.",
+        "updates": "{n} opdateringer",
+        "used_in": "bruges i",
+    },
+}
