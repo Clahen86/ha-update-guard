@@ -1,0 +1,18 @@
+{
+  "entity": {
+    "sensor": {
+      "assessment": {
+        "default": "mdi:shield-check",
+        "state": {
+          "wait": "mdi:shield-alert",
+          "check": "mdi:shield-search",
+          "none": "mdi:shield-outline"
+        }
+      },
+      "findings": { "default": "mdi:format-list-checks" }
+    },
+    "button": {
+      "check_now": { "default": "mdi:shield-refresh" }
+    }
+  }
+}

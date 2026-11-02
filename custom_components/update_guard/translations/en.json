@@ -1,0 +1,48 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Update Guard",
+        "description": "Update Guard reads the release notes of every pending update and compares them with your setup. It tells you what might break before you install, as a sensor and in Repairs."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Update Guard is already set up."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "assessment": {
+        "name": "Assessment",
+        "state": {
+          "wait": "Wait",
+          "check": "Check first",
+          "safe": "Safe",
+          "none": "No updates"
+        },
+        "state_attributes": {
+          "updates": { "name": "Updates" },
+          "checked": { "name": "Checked" }
+        }
+      },
+      "findings": {
+        "name": "Things to check"
+      }
+    },
+    "button": {
+      "check_now": {
+        "name": "Check now"
+      }
+    }
+  },
+  "issues": {
+    "update_wait": {
+      "title": "Wait with {name} {latest}",
+      "description": "Updating {name} from {installed} to {latest} looks like it will break something you use:\n\n{findings}\n\nRead the release notes and fix this before you update."
+    },
+    "update_check": {
+      "title": "Check before updating {name} {latest}",
+      "description": "Updating {name} from {installed} to {latest} changes something you use:\n\n{findings}\n\nRead the release notes before you update."
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Update Guard",
+        "description": "Update Guard læser release notes for alle ventende opdateringer og holder dem op mod din opsætning. Den fortæller, hvad der kan gå i stykker, før du installerer, som en sensor og under Reparationer."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Update Guard er allerede sat op."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "assessment": {
+        "name": "Vurdering",
+        "state": {
+          "wait": "Vent",
+          "check": "Tjek først",
+          "safe": "Sikker",
+          "none": "Ingen opdateringer"
+        },
+        "state_attributes": {
+          "updates": { "name": "Opdateringer" },
+          "checked": { "name": "Tjekket" }
+        }
+      },
+      "findings": {
+        "name": "Ting at tjekke"
+      }
+    },
+    "button": {
+      "check_now": {
+        "name": "Tjek nu"
+      }
+    }
+  },
+  "issues": {
+    "update_wait": {
+      "title": "Vent med {name} {latest}",
+      "description": "Opdateringen af {name} fra {installed} til {latest} ser ud til at ødelægge noget, du bruger:\n\n{findings}\n\nLæs release notes, og ret det, før du opdaterer. Teksten fra udviklerne er på engelsk."
+    },
+    "update_check": {
+      "title": "Tjek før du opdaterer {name} {latest}",
+      "description": "Opdateringen af {name} fra {installed} til {latest} ændrer noget, du bruger:\n\n{findings}\n\nLæs release notes, før du opdaterer. Teksten fra udviklerne er på engelsk."
+    }
+  }
+}
