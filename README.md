@@ -38,6 +38,8 @@ You see it in three places: the sensor, **Settings → Repairs** (one repair per
 
 ### After the update
 
+![Example of a repair after an update (illustration)](docs/after.png)
+
 Update Guard keeps a snapshot of what works (available entities and loaded integrations) every 10 minutes. When an update has been installed – an app, a HACS integration, firmware, or Home Assistant itself – it checks again **5 and 30 minutes** later:
 
 - Only what worked before and is **still** broken at both checks is reported. Things that are unavailable for a minute during a restart, or that were already broken, are not.
@@ -149,6 +151,8 @@ Hver måned kommer der ændringer i Home Assistant, apps og HACS-integrationer, 
 - **Det HA allerede har advaret om:** Advarsler i loggen og reparationer med en "går i stykker i"-version kobles til den opdatering, hvor de rent faktisk går i stykker.
 
 ### Efter opdateringen
+
+![Eksempel på en reparation efter en opdatering (illustration)](docs/after.png)
 
 Update Guard gemmer hvert 10. minut et øjebliksbillede af, hvad der virker, dvs. hvilke enheder der er tilgængelige, og hvilke integrationer der er startet. Når en opdatering er installeret, tjekker den igen **5 og 30 minutter** efter. Det gælder apps, HACS-integrationer, firmware og selve Home Assistant.
 
