@@ -55,6 +55,8 @@ LABELS = {
     },
 }
 
+# Optional AI Task entity that double-checks lines found by keywords.
+CONF_AI = "ai_task"
 CONF_NOTIFY = "notify"
 CONF_NOTIFY_LEVEL = "notify_level"
 # What is announced: everything, everything that needs a look (incl. unknown), or only wait.

@@ -1,4 +1,4 @@
-"""Config flow for Update Guard. Notifications are set under Configure."""
+"""Config flow for Update Guard. Notifications and the AI check are set under Configure."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResu
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from .const import CONF_NOTIFY, CONF_NOTIFY_LEVEL, DOMAIN, NOTIFY_ALL, NOTIFY_LEVELS
+from .const import CONF_AI, CONF_NOTIFY, CONF_NOTIFY_LEVEL, DOMAIN, NOTIFY_ALL, NOTIFY_LEVELS
 
 # Services that are not a phone or a list of phones.
 _SKIP = {"notify", "send_message", "persistent_notification"}
@@ -52,6 +52,10 @@ class UpdateGuardOptionsFlow(OptionsFlow):
                         options=NOTIFY_LEVELS, translation_key=CONF_NOTIFY_LEVEL, mode=selector.SelectSelectorMode.LIST
                     )
                 ),
+                # Optional, and can be cleared again: a suggested value instead of a default.
+                vol.Optional(
+                    CONF_AI, description={"suggested_value": self.config_entry.options.get(CONF_AI)}
+                ): selector.EntitySelector(selector.EntitySelectorConfig(domain="ai_task")),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

@@ -363,3 +363,70 @@ async def test_missing_notes_are_unknown_not_safe(hass: HomeAssistant, aioclient
     assert levels == {"Home Assistant Core": ("unknown", True), "Garage": ("unknown", True)}
     # "Only what needs a look" includes unknown.
     assert len(calls) == 1 and "⚪ 2" in calls[0].data["title"]
+
+
+async def test_ai_check(hass: HomeAssistant, aioclient_mock) -> None:
+    """The AI drops a false alarm, the answer is kept, and a broken AI falls back to the keyword verdict."""
+    from homeassistant.core import SupportsResponse
+    from homeassistant.exceptions import HomeAssistantError
+
+    _mock_github(aioclient_mock)
+    asked = []
+
+    async def generate_data(call):
+        asked.append(call.data)
+        if call.data["entity_id"] == "ai_task.broken":
+            raise HomeAssistantError("quota")
+        return {
+            "data": {
+                "lines": [
+                    {"n": 1, "relevant": False, "severe": False, "reason": "Kun for 32-bit"},
+                    {"n": 2, "relevant": True, "severe": True, "reason": "Du bruger den"},
+                ]
+            }
+        }
+
+    hass.services.async_register("ai_task", "generate_data", generate_data, supports_response=SupportsResponse.ONLY)
+    er.async_get(hass).async_get_or_create("update", "esphome", "esp1", suggested_object_id="esphome_update")
+    hass.states.async_set(
+        "update.esphome_update",
+        "on",
+        {
+            "installed_version": "2026.10.1",
+            "latest_version": "2026.11.0",
+            "title": "ESPHome",
+            "release_summary": "- Support for 32-bit platforms is deprecated\n"
+            "- The `wifi.fast_connect` option is no longer supported",
+        },
+    )
+    entry = MockConfigEntry(domain=DOMAIN, data={}, options={"ai_task": "ai_task.gemini"})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert len(asked) == 1
+    prompt = asked[0]["instructions"]
+    assert "1. Support for 32-bit" in prompt and "Danish" not in prompt
+    update = hass.states.get("sensor.update_guard_assessment").attributes["updates"][0]
+    assert update["ai_checked"] and update["level"] == "wait"
+    first, second = update["findings"]
+    assert "wifi.fast_connect" in first["text"] and first["ai"] == "Du bruger den" and not first["general"]
+    assert second["general"] and second["ai"] == "Kun for 32-bit"
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, "risk_update.esphome_update")
+    assert "🤖 Du bruger den" in issue.translation_placeholders["findings"]
+    assert "32-bit" not in issue.translation_placeholders["findings"]
+
+    # Same version: the answer is reused, no new call.
+    await entry.runtime_data.async_refresh()
+    assert len(asked) == 1
+
+    # A broken AI: the keyword verdict stays, and it isn't asked again right away.
+    hass.config_entries.async_update_entry(entry, options={"ai_task": "ai_task.broken"})
+    await hass.async_block_till_done()
+    entry.runtime_data.ai.answers.clear()
+    await entry.runtime_data.async_refresh()
+    await entry.runtime_data.async_refresh()
+    assert len(asked) == 2
+    update = entry.runtime_data.data["updates"][0]
+    assert not update["ai_checked"] and update["level"] == "check"
+    assert all(not f["ai"] for f in update["findings"])

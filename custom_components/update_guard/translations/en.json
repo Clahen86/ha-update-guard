@@ -53,14 +53,16 @@
   "options": {
     "step": {
       "init": {
-        "title": "Notifications",
-        "description": "Get a notification on your phone when a new update shows up, with the verdict. Tap it to open Repairs.",
+        "title": "Settings",
+        "description": "Notifications on your phone when a new update shows up, and an optional AI check of changelogs.",
         "data": {
           "notify": "Send to",
-          "notify_level": "Notify about"
+          "notify_level": "Notify about",
+          "ai_task": "AI check (optional)"
         },
         "data_description": {
-          "notify": "One or more, e.g. notify.mobile_app_your_phone. Leave empty for no notifications."
+          "notify": "One or more, e.g. notify.mobile_app_your_phone. Leave empty for no notifications.",
+          "ai_task": "An AI Task entity, e.g. Google Gemini. It double-checks lines found by keywords in app, HACS and firmware changelogs and drops false alarms. Only those lines and the names of your options and devices are sent – never values. Leave empty to not use AI."
         }
       }
     }

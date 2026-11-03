@@ -21,8 +21,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from . import notes, usage
+from .ai import AiReview
 from .notifier import Notifier
 from .const import (
+    CONF_AI,
     HACS_JSON,
     LABELS,
     DOMAIN,
@@ -69,6 +71,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.deprecations = usage.DeprecationLog(hass)
         self._index: list[tuple[str, str, str]] = []
         self.notifier = Notifier(hass)
+        self.ai = AiReview(hass)
 
     @callback
     def async_watch_updates(self) -> None:
@@ -116,6 +119,9 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Docker/Core installs have no core update entity: ask GitHub instead.
         if not core_seen and (latest := await self._latest_core()) and notes.months_between(HA_VERSION, latest):
             updates.append(await self._core(HA_VERSION, latest, None))
+
+        if ai_entity := self.config_entry.options.get(CONF_AI):
+            await self.ai.async_review(ai_entity, updates)
 
         updates.sort(key=lambda u: (LEVELS.index(u["level"]), u["kind"] != KIND_CORE, u["name"].lower()))
         level = updates[0]["level"] if updates else LEVEL_NONE
@@ -353,6 +359,7 @@ def _result(
         "latest": latest,
         "level": level,
         "notes_missing": notes_missing,
+        "ai_checked": False,
         "release_url": url,
         "findings": [f.as_dict() for f in findings[:MAX_FINDINGS]],
         **extra,
@@ -369,6 +376,8 @@ def _line(finding: dict[str, Any], language: str) -> str:
     if finding["used_in"]:
         places = [labels.get(kind, kind) + ":" + name for kind, name in (u.split(":", 1) for u in finding["used_in"])]
         line += f"\n  {labels['used_in']}: " + ", ".join(places)
+    if finding.get("ai"):
+        line += f"\n  🤖 {finding['ai']}"
     return line
 
 

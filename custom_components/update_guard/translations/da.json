@@ -53,14 +53,16 @@
   "options": {
     "step": {
       "init": {
-        "title": "Beskeder",
-        "description": "Få en besked på telefonen, når der kommer en ny opdatering, med vurderingen. Tryk på den for at åbne Reparationer.",
+        "title": "Indstillinger",
+        "description": "Besked på telefonen, når der kommer en ny opdatering, og en valgfri AI-kontrol af changelogs.",
         "data": {
           "notify": "Send til",
-          "notify_level": "Besked om"
+          "notify_level": "Besked om",
+          "ai_task": "AI-kontrol (valgfri)"
         },
         "data_description": {
-          "notify": "Én eller flere, fx notify.mobile_app_din_telefon. Lad den være tom for ingen beskeder."
+          "notify": "Én eller flere, fx notify.mobile_app_din_telefon. Lad den være tom for ingen beskeder.",
+          "ai_task": "En AI Task-enhed, fx Google Gemini. Den dobbelttjekker de linjer i changelogs for apps, HACS og firmware, som nøgleordene har fundet, og fjerner falske alarmer. Kun de linjer og navnene på dine indstillinger og enheder sendes – aldrig værdier. Lad den være tom for ingen AI."
         }
       }
     }

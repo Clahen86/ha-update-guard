@@ -60,6 +60,68 @@ def test_scan_changelog():
     assert notes.scan_changelog("- Bump base image\n- Fix typo") == []
 
 
+def test_scan_changelog_skips_developer_changes():
+    text = """## 2.0.0
+- Remove unused translations
+- Fix deprecation warning related to device binding
+- Replaced deprecated function `async_track_state_change`
+- light: avoid breaking on bad rgbhsv data
+- docs: remove onvif host environment variable
+- No breaking changes in this release
+- The `port` option was removed, use `listen_port`
+- feat!: drop the legacy API
+"""
+    texts = [f.text for f in notes.scan_changelog(text)]
+    assert texts == ["The `port` option was removed, use `listen_port`", "feat!: drop the legacy API"]
+    assert [f.severe for f in notes.scan_changelog(text)] == [False, True]
+
+
+def test_scan_changelog_sections():
+    text = """This release includes breaking changes, read them below.
+
+## ⚠ BREAKING CHANGES
+
+* `spin` (to make the icon rotate) has
+  been renamed to `rotate`
+* The default theme changed
+
+```yaml
+type: custom:button-card
+```
+
+## Bug fixes
+
+* Remove a check that was removed upstream
+* Options are no longer saved twice
+
+**Full Changelog**: https://github.com/x/y/compare/1...2
+"""
+    findings = notes.scan_changelog(text)
+    assert [f.text for f in findings] == [
+        "`spin` (to make the icon rotate) has been renamed to `rotate`",
+        "The default theme changed",
+        "Options are no longer saved twice",
+    ]
+    assert findings[0].severe and findings[1].severe and not findings[2].severe
+
+
+def test_parse_ai_answer():
+    answer = '```json\n{"lines": [{"n": 1, "relevant": false, "reason": "Internal"}, {"n": 2, "relevant": true, '
+    answer += '"severe": true, "reason": "Option renamed"}, {"n": 9, "relevant": true}, {"n": "x"}]}\n```'
+    verdicts = notes.parse_ai_answer(answer, 2)
+    assert verdicts == {
+        1: {"relevant": False, "severe": False, "reason": "Internal"},
+        2: {"relevant": True, "severe": True, "reason": "Option renamed"},
+    }
+    assert notes.parse_ai_answer({"lines": []}, 1) == {}
+    for broken in ("no json", {"other": 1}, None):
+        try:
+            notes.parse_ai_answer(broken, 1)
+        except ValueError:
+            continue
+        raise AssertionError(broken)
+
+
 def test_keywords():
     changes = notes.parse_breaking_changes(POST)
     mqtt = next(c for c in changes if c.title == "MQTT")
