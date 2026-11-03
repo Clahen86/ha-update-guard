@@ -48,6 +48,10 @@
     "update_check": {
       "title": "Tjek før du opdaterer {name} {latest}",
       "description": "Opdateringen af {name} fra {installed} til {latest} ændrer noget, du bruger:\n\n{findings}\n\nLæs release notes, før du opdaterer. Teksten fra udviklerne er på engelsk."
+    },
+    "after_broken": {
+      "title": "Efter opdatering af {names} virker {count} ikke",
+      "description": "Det her virkede før opdateringen og virkede stadig ikke 5 og 30 minutter efter:\n\n{findings}\n\nGenstart integrationen eller appen, læs release notes, eller gendan en backup. Reparationen forsvinder af sig selv, når det hele virker igen."
     }
   },
   "options": {

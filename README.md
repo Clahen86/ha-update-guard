@@ -1,6 +1,6 @@
 # Update Guard
 
-**Know what an update will break – before you install it.**
+**Know what an update will break – before you install it. And what broke – right after.**
 
 ![Update Guard](docs/hero.png)
 
@@ -35,6 +35,21 @@ Every month Home Assistant ships changes that can break things, and so do apps (
 > **Green is not a guarantee.** It means nothing in the release notes touches your setup. Changes that the developers didn't write down can't be found. Keep taking backups.
 
 You see it in three places: the sensor, **Settings → Repairs** (one repair per risky update, with what to look at and a link to the release notes), and the attributes of the sensor for dashboards and automations.
+
+### After the update
+
+Update Guard keeps a snapshot of what works (available entities and loaded integrations) every 10 minutes. When an update has been installed – an app, a HACS integration, firmware, or Home Assistant itself – it checks again **5 and 30 minutes** later:
+
+- Only what worked before and is **still** broken at both checks is reported. Things that are unavailable for a minute during a restart, or that were already broken, are not.
+- What belongs to the update is told apart from what broke at the same time, which may be a coincidence:
+  > **🔴 After Zigbee2MQTT 2.15.0: 5 stopped working**
+  > Stopped working: Hallway sensor (3), Kitchen plug
+  > At the same time, maybe a coincidence: Garage temperature
+- New errors in the log from the updated integration or from automations are listed too.
+- You get a repair (and a notification, if you turned them on). It goes away by itself when everything works again.
+- Updates installed close together are checked as one. A restart (e.g. to load a HACS update) starts the checks over.
+
+It says *after*, not *because of*: it can't know why something stopped working, only that it worked before.
 
 ### Installation
 
@@ -118,7 +133,7 @@ content: >
 - Patch releases of Home Assistant (e.g. 2026.10.4 → 2026.10.5) only contain bug fixes by policy and are not checked line by line.
 - Integrations installed by hand (not via HACS) have no update entity, so only their log warnings are seen.
 
-**What's next?** A before/after check that tells you what stopped working right after an update.
+**What's next?** Ideas and wishes are welcome as issues on GitHub.
 
 ## Dansk
 
@@ -132,6 +147,18 @@ Hver måned kommer der ændringer i Home Assistant, apps og HACS-integrationer, 
 - **HACS-integrationer:** Den laver samme tjek som for apps. Derudover får du besked om at opdatere HA først, hvis den nye version kræver en nyere HA.
 - **Firmware og alt andet** med en opdatering (ESPHome, Zigbee osv.): Den leder i changelog efter ord som *breaking*, *removed* og *deprecated*. Alt i et afsnit med *Breaking changes* tæller med. Ændringer for udviklere, som "Remove unused code" og "Fix deprecation warning", og afsnit med fejlrettelser tæller ikke.
 - **Det HA allerede har advaret om:** Advarsler i loggen og reparationer med en "går i stykker i"-version kobles til den opdatering, hvor de rent faktisk går i stykker.
+
+### Efter opdateringen
+
+Update Guard gemmer hvert 10. minut et øjebliksbillede af, hvad der virker, dvs. hvilke enheder der er tilgængelige, og hvilke integrationer der er startet. Når en opdatering er installeret, tjekker den igen **5 og 30 minutter** efter. Det gælder apps, HACS-integrationer, firmware og selve Home Assistant.
+
+- Den melder kun det, der virkede før og **stadig** er i stykker ved begge tjek. Det, der kun er utilgængeligt et øjeblik under en genstart, eller som var i stykker i forvejen, melder den ikke.
+- Den skelner mellem det, der hører til opdateringen, og det, der gik i stykker samtidig, hvilket kan være tilfældigt.
+- Nye fejl i loggen fra den opdaterede integration eller fra automatiseringer kommer også med.
+- Du får en reparation og en besked, hvis du har slået beskeder til. Reparationen forsvinder af sig selv, når det hele virker igen.
+- Opdateringer, der installeres tæt på hinanden, tjekkes samlet. En genstart, fx for at indlæse en HACS-opdatering, starter tjekket forfra.
+
+Den skriver "efter", ikke "på grund af". Den kan ikke vide, hvorfor noget holdt op med at virke, kun at det virkede før.
 
 ### Vurderingen
 

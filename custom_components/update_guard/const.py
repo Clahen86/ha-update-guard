@@ -42,6 +42,10 @@ LABELS = {
         "automation": "Automation",
         "script": "Script",
         "dashboard": "Dashboard",
+        "after_related": "Stopped working:",
+        "after_other": "At the same time, maybe a coincidence:",
+        "after_entry": "Integration could not start:",
+        "after_errors": "New errors in the log:",
     },
     "da": {
         "log": "Advarsel i loggen:",
@@ -52,6 +56,10 @@ LABELS = {
         "automation": "Automatisering",
         "script": "Script",
         "dashboard": "Dashboard",
+        "after_related": "Virker ikke længere:",
+        "after_other": "Samtidig, måske tilfældigt:",
+        "after_entry": "Integration kunne ikke starte:",
+        "after_errors": "Nye fejl i loggen:",
     },
 }
 
@@ -79,6 +87,8 @@ NOTIFY_TEXT = {
         "no_notes": "No release notes could be read. Check it yourself before you update.",
         "updates": "{n} updates",
         "used_in": "used in",
+        "after_ok": "Everything still works after {names}",
+        "after_broken": "After {names}: {n} stopped working",
     },
     "da": {
         "wait": "Vent",
@@ -89,5 +99,7 @@ NOTIFY_TEXT = {
         "no_notes": "Der var ingen release notes at læse. Tjek selv, før du opdaterer.",
         "updates": "{n} opdateringer",
         "used_in": "bruges i",
+        "after_ok": "Alt virker stadig efter {names}",
+        "after_broken": "Efter {names}: {n} virker ikke",
     },
 }

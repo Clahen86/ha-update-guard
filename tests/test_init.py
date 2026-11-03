@@ -430,3 +430,101 @@ async def test_ai_check(hass: HomeAssistant, aioclient_mock) -> None:
     update = entry.runtime_data.data["updates"][0]
     assert not update["ai_checked"] and update["level"] == "check"
     assert all(not f["ai"] for f in update["findings"])
+
+
+async def test_after_update(hass: HomeAssistant, aioclient_mock) -> None:
+    """What still doesn't work 5 and 30 minutes after an update is reported, and the repair goes away again."""
+    from datetime import timedelta
+
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed, async_mock_service
+
+    from homeassistant.helpers import device_registry as dr
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.update_guard import after
+
+    _mock_github(aioclient_mock)
+    calls = async_mock_service(hass, "notify", "mobile_app_phone")
+    entry = MockConfigEntry(
+        domain=DOMAIN, data={}, options={"notify": ["notify.mobile_app_phone"], "notify_level": "check"}
+    )
+    entry.add_to_hass(hass)
+    device_entry = MockConfigEntry(domain="esphome", title="Kitchen")
+    device_entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=device_entry.entry_id, identifiers={("esphome", "kitchen")}, name="Kitchen"
+    )
+    registry = er.async_get(hass)
+    for object_id, platform, device_id in (
+        ("kitchen_firmware", "esphome", device.id),
+        ("kitchen_temp", "esphome", device.id),
+        ("garage_temp", "demo", None),
+        ("flaky", "demo", None),
+    ):
+        domain = "update" if object_id == "kitchen_firmware" else "sensor"
+        registry.async_get_or_create(domain, platform, object_id, suggested_object_id=object_id, device_id=device_id)
+    for entity_id in ("sensor.kitchen_temp", "sensor.garage_temp", "sensor.flaky"):
+        hass.states.async_set(entity_id, "21")
+    hass.states.async_set("update.kitchen_firmware", "off", {"installed_version": "1.0", "title": "Kitchen"})
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    checker = entry.runtime_data.after
+    checker.baseline = after.snapshot(hass)
+
+    # The firmware is installed, and three things go away.
+    hass.states.async_set("update.kitchen_firmware", "off", {"installed_version": "2.0", "title": "Kitchen"})
+    for entity_id in ("sensor.kitchen_temp", "sensor.garage_temp", "sensor.flaky"):
+        hass.states.async_set(entity_id, "unavailable")
+    await hass.async_block_till_done()
+    assert checker.batch and checker.batch["updates"][0]["device"] == device.id
+
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=301))
+    await hass.async_block_till_done()
+    assert checker.batch["first"]["entities"] == ["sensor.flaky", "sensor.garage_temp", "sensor.kitchen_temp"]
+    # One comes back by itself: not reported.
+    hass.states.async_set("sensor.flaky", "21")
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=1801))
+    await hass.async_block_till_done()
+
+    assert checker.batch is None
+    issues = [i for (d, i) in ir.async_get(hass).issues if d == DOMAIN and i.startswith("after_")]
+    assert len(issues) == 1
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, issues[0])
+    assert issue.severity == ir.IssueSeverity.ERROR
+    findings = issue.translation_placeholders["findings"]
+    stopped, coincidence = findings.split("At the same time")
+    assert "Kitchen" in stopped and "garage" not in stopped.lower()
+    assert "garage" in coincidence.lower() and "flaky" not in findings
+    assert len(calls) == 1 and calls[0].data["title"] == "🔴 After Kitchen 2.0: 2 stopped working"
+
+    # Everything works again: the repair goes away.
+    hass.states.async_set("sensor.kitchen_temp", "21")
+    hass.states.async_set("sensor.garage_temp", "21")
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2500))
+    await hass.async_block_till_done()
+    assert not [i for (d, i) in ir.async_get(hass).issues if d == DOMAIN and i.startswith("after_")]
+
+
+async def test_app_domains() -> None:
+    from custom_components.update_guard.after import app_domains
+
+    assert app_domains("45df7312_zigbee2mqtt") == {"mqtt"}
+    assert app_domains("core_mosquitto") == {"mqtt"}
+    assert app_domains("core_zwave_js") == {"zwave_js"}
+    assert app_domains("a0d7b954_appdaemon") == {"appdaemon"}
+
+
+async def test_after_core_update(hass: HomeAssistant, aioclient_mock, hass_storage) -> None:
+    """Home Assistant starting on a new version is an installed update, compared with what worked before."""
+    import time
+
+    _mock_github(aioclient_mock)
+    hass_storage["update_guard.after"] = {
+        "version": 1,
+        "key": "update_guard.after",
+        "data": {"baseline": {"time": time.time() - 60, "ok": ["sensor.x"], "loaded": []}, "core": "2026.9.0"},
+    }
+    entry = await _setup(hass)
+    batch = entry.runtime_data.after.batch
+    assert batch["updates"][0]["kind"] == "core" and batch["updates"][0]["from"] == "2026.9.0"
+    assert batch["before"]["ok"] == ["sensor.x"]

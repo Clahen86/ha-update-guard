@@ -56,7 +56,11 @@ class Notifier:
         if not targets or not new:
             return
         title, message = build_message(new, self.hass.config.language)
-        for target in targets:
+        await self.async_send(title, message, options)
+
+    async def async_send(self, title: str, message: str, options: dict[str, Any]) -> None:
+        """Send one message to every chosen phone. Tapping it opens Repairs."""
+        for target in options.get(CONF_NOTIFY) or []:
             domain, _, service = target.partition(".")
             if not service:
                 domain, service = "notify", target

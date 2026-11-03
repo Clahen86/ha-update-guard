@@ -21,6 +21,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from . import notes, usage
+from .after import AfterCheck
 from .ai import AiReview
 from .notifier import Notifier
 from .const import (
@@ -72,6 +73,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._index: list[tuple[str, str, str]] = []
         self.notifier = Notifier(hass)
         self.ai = AiReview(hass)
+        self.after = AfterCheck(hass, self)
 
     @callback
     def async_watch_updates(self) -> None:
@@ -85,6 +87,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 or new is None
                 or old.state != new.state
                 or (old.attributes.get("latest_version") != new.attributes.get("latest_version"))
+                or (old.attributes.get("installed_version") != new.attributes.get("installed_version"))
             ):
                 self.hass.async_create_task(self.async_request_refresh())
 
@@ -92,6 +95,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.config_entry.async_on_unload(tracker.async_remove)
 
     async def _async_update_data(self) -> dict[str, Any]:
+        self.after.async_scan()
         registry = er.async_get(self.hass)
         self._index = await usage.config_index(self.hass)
         updates: list[dict[str, Any]] = []
