@@ -60,12 +60,15 @@
     },
     "after_broken": {
       "title": "Efter opdatering af {names} virker {count} ikke",
-      "description": "Det her virkede før opdateringen og virkede stadig ikke 5 og 30 minutter efter:\n\n{findings}\n\nGenstart integrationen eller appen, læs release notes, eller gendan en backup. Reparationen forsvinder af sig selv, når det hele virker igen.",
+      "description": "Det her virkede før opdateringen og virkede stadig ikke 5 og 30 minutter efter:\n\n{findings}\n\nGenstart integrationen eller appen, læs release notes, eller gendan en backup. Reparationen forsvinder af sig selv, når det hele virker igen."
+    },
+    "after_broken_fix": {
+      "title": "Efter opdatering af {names} virker {count} ikke",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Gå tilbage til versionen før",
-            "description": "Installerer {names} igen. En app gendannes fra den backup, Supervisor tog før opdateringen."
+            "description": "Det her virkede før opdateringen og virkede stadig ikke 5 og 30 minutter efter:\n\n{findings}\n\nVil du gå tilbage til versionen før? Så installeres {names} igen. En app gendannes fra den backup, Supervisor tog før opdateringen."
           }
         },
         "abort": {

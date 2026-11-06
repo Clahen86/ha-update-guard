@@ -15,8 +15,9 @@ from .const import DOMAIN
 
 
 class RollbackFlow(RepairsFlow):
-    def __init__(self, items: list[dict[str, Any]]) -> None:
+    def __init__(self, items: list[dict[str, Any]], findings: str = "") -> None:
         self.items = items
+        self.findings = findings
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         return await self.async_step_confirm()
@@ -35,11 +36,12 @@ class RollbackFlow(RepairsFlow):
             return self.async_create_entry(data={})
         names = ", ".join(f"{i['name']} {i['version']}" for i in self.items)
         return self.async_show_form(
-            step_id="confirm", data_schema=vol.Schema({}), description_placeholders={"names": names}
+            step_id="confirm", data_schema=vol.Schema({}), description_placeholders={"names": names, "findings": self.findings}
         )
 
 
 async def async_create_fix_flow(
     hass: HomeAssistant, issue_id: str, data: dict[str, Any] | None
 ) -> RepairsFlow:
-    return RollbackFlow(list((data or {}).get("rollback") or []))
+    data = data or {}
+    return RollbackFlow(list(data.get("rollback") or []), str(data.get("findings") or ""))

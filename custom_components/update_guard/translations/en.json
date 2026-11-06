@@ -60,12 +60,15 @@
     },
     "after_broken": {
       "title": "After updating {names}, {count} stopped working",
-      "description": "This worked before the update and still didn't work 5 and 30 minutes after it:\n\n{findings}\n\nRestart the integration or app, check its release notes, or restore a backup. This repair goes away by itself when everything works again.",
+      "description": "This worked before the update and still didn't work 5 and 30 minutes after it:\n\n{findings}\n\nRestart the integration or app, check its release notes, or restore a backup. This repair goes away by itself when everything works again."
+    },
+    "after_broken_fix": {
+      "title": "After updating {names}, {count} stopped working",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Go back to the version before",
-            "description": "Installs {names} again. An app is restored from the backup the Supervisor took before the update."
+            "description": "This worked before the update and still didn't work 5 and 30 minutes after it:\n\n{findings}\n\nGo back to the version before? This installs {names} again. An app is restored from the backup the Supervisor took before the update."
           }
         },
         "abort": {

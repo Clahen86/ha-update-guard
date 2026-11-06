@@ -240,10 +240,11 @@ class AfterCheck:
             DOMAIN,
             issue_id,
             is_fixable=bool(rollback),
-            data={"rollback": rollback} if rollback else None,
+            data={"rollback": rollback, "findings": "\n".join(lines)} if rollback else None,
             is_persistent=True,
             severity=ir.IssueSeverity.ERROR if severe else ir.IssueSeverity.WARNING,
-            translation_key="after_broken",
+            # A repair has either a text or a fix flow: with a way back, the text is in the flow.
+            translation_key="after_broken_fix" if rollback else "after_broken",
             translation_placeholders={"names": names, "count": str(count or len(errors)), "findings": "\n".join(lines)},
         )
         self.reports[issue_id] = {
