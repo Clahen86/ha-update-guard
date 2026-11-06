@@ -75,9 +75,11 @@ async def test_app_changelog_and_issue_cleanup(hass: HomeAssistant, aioclient_mo
     entry = await _setup(hass)
 
     state = hass.states.get("sensor.update_guard_assessment")
-    assert state.state == "wait"
+    # Breaking, but nothing in this system shows it is used: check first, not wait.
+    assert state.state == "check"
     app = state.attributes["updates"][0]
-    assert app["kind"] == "app" and app["level"] == "wait"
+    assert app["kind"] == "app" and app["level"] == "check"
+    assert app["verdict"].startswith("Check first") and "not found in your system" in app["verdict"]
     assert ir.async_get(hass).async_get_issue(DOMAIN, "risk_update.appdaemon_update")
 
     # Once installed, the repair goes away.
@@ -283,7 +285,7 @@ async def test_notifications(hass: HomeAssistant, aioclient_mock) -> None:
     await hass.async_block_till_done()
     await entry.runtime_data.async_refresh()
     assert len(calls) == 2
-    assert calls[1].data["title"].startswith("🔴 ESPHome 2026.11.0")
+    assert calls[1].data["title"].startswith("🟡 ESPHome 2026.11.0")
     assert "wifi.fast_connect" in calls[1].data["message"]
 
 
@@ -297,14 +299,17 @@ async def test_notify_only_wait_and_combined(hass: HomeAssistant, aioclient_mock
                 "name": "B",
                 "latest": "2",
                 "level": "wait",
-                "findings": [{"title": "x_y", "text": "removed", "general": False, "used_in": ["automation: Lys"]}],
+                "findings": [
+                    {"title": "x_y", "text": "removed", "general": False, "severe": True, "source": "changelog",
+                     "affects": "yes", "used_in": ["automation: Lys"]}
+                ],
             },
         ],
         "da",
     )
     assert title == "2 opdateringer: 🔴 1 · 🟢 1"
     assert message.splitlines()[0] == "🔴 B 2"
-    assert "bruges i: Lys" in message
+    assert "bruges i Lys" in message and "Vent" in message
 
 
 async def test_options_flow(hass: HomeAssistant, aioclient_mock) -> None:
@@ -408,7 +413,8 @@ async def test_ai_check(hass: HomeAssistant, aioclient_mock) -> None:
     prompt = asked[0]["instructions"]
     assert "1. Support for 32-bit" in prompt and "Danish" not in prompt
     update = hass.states.get("sensor.update_guard_assessment").attributes["updates"][0]
-    assert update["ai_checked"] and update["level"] == "wait"
+    # The AI can drop false alarms, but only proof from the system makes it wait.
+    assert update["ai_checked"] and update["level"] == "check"
     first, second = update["findings"]
     assert "wifi.fast_connect" in first["text"] and first["ai"] == "Du bruger den" and not first["general"]
     assert second["general"] and second["ai"] == "Kun for 32-bit"

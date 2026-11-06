@@ -108,6 +108,10 @@ class Finding:
     used_in: list[str] = field(default_factory=list)
     # What the optional AI check said about it.
     ai: str = ""
+    # Does it touch this system? "yes" (proof found here), "maybe" (only the integration matches) or "no".
+    affects: str = "maybe"
+    # Proof from this system besides used_in: entities, attributes, YAML setup.
+    evidence: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -294,13 +298,53 @@ def has_content(text: str | None) -> bool:
     return len(re.sub(r"\W+", "", text)) >= 30
 
 
+# Sources that are facts about this system: Home Assistant's own warnings, a needed version, your own options.
+FACT_SOURCES = {"log", "repair", "hacs", "option"}
+_YAML = re.compile(r"\byaml\b", re.I)
+
+
+def judge(finding: Finding, yaml_domains: set[str] | None = None) -> None:
+    """Set finding.affects from what was found in this system."""
+    if finding.general or finding.affects == "no":
+        finding.affects = "no"
+    elif finding.source in FACT_SOURCES or finding.used_in or finding.evidence:
+        finding.affects = "yes"
+    elif finding.source == "release" and finding.severe and finding.domains:
+        # An integration that is removed or stops working, and it is loaded here.
+        finding.evidence = [f"integration:{d}" for d in finding.domains]
+        finding.affects = "yes"
+    elif yaml_domains is not None and finding.domains and _YAML.search(finding.text):
+        # A change to YAML setup only matters if you set the integration up in YAML.
+        used = sorted(d for d in finding.domains if d in yaml_domains)
+        if used:
+            finding.evidence = [f"yaml:{d}" for d in used]
+            finding.affects = "yes"
+        else:
+            finding.affects = "no"
+    else:
+        finding.affects = "maybe"
+
+
 def level_of(findings: list[Finding]) -> str:
-    """Overall level for one update."""
-    if any(f.severe and not f.general for f in findings):
+    """Overall level for one update, from what touches this system.
+
+    Wait: something severe, and proof that you use it. Check: severe without proof, a change you are proven to
+    use, a Core change to an integration you have, or a line that asks you to act. Other changelog lines with no
+    trace of them here are listed, but don't stop the update."""
+    if any(f.severe and f.affects == "yes" and not f.general for f in findings):
         return LEVEL_WAIT
-    if any(not f.general for f in findings):
+    if any(
+        not f.general and (f.affects == "yes" or (f.affects == "maybe" and (f.severe or f.source == "release" or _ACTION.search(f.text))))
+        for f in findings
+    ):
         return LEVEL_CHECK
     return LEVEL_SAFE
+
+
+def sort_key(finding: Finding | dict) -> tuple:
+    """Proven and severe first, general last."""
+    f = finding if isinstance(finding, dict) else finding.as_dict()
+    return ({"yes": 0, "maybe": 1}.get(f.get("affects"), 2), not f["severe"], f["general"])
 
 
 def parse_ai_answer(data: object, count: int) -> dict[int, dict]:

@@ -86,8 +86,7 @@ def build_message(updates: list[dict[str, Any]], language: str) -> tuple[str, st
     if len(updates) == 1:
         update = updates[0]
         title = f"{_ICON[update['level']]} {update['name']} {update['latest']} – {text[update['level']]}"
-        empty = text["no_notes"] if update["level"] == LEVEL_UNKNOWN else text["nothing"]
-        return title, "\n".join(_points(update, text, 3)) or empty
+        return title, "\n".join([verdict(update, language), *_points(update, text, 3)[1:]])
     counts = " · ".join(
         f"{_ICON[level]} {n}"
         for level in (LEVEL_WAIT, LEVEL_CHECK, LEVEL_UNKNOWN, LEVEL_SAFE)
@@ -97,18 +96,50 @@ def build_message(updates: list[dict[str, Any]], language: str) -> tuple[str, st
     lines = []
     for update in updates:
         lines.append(f"{_ICON[update['level']]} {update['name']} {update['latest']}")
-        lines.extend(f"   {p}" for p in _points(update, text, 1))
+        lines.append(f"   {verdict(update, language)}")
     return title, "\n".join(lines)
+
+
+def verdict(update: dict[str, Any], language: str) -> str:
+    """One short line: update or not, and the reason from this system."""
+    text = NOTIFY_TEXT.get(language.split("-")[0], NOTIFY_TEXT["en"])
+    level = update["level"]
+    if level == LEVEL_UNKNOWN:
+        return text["v_unknown"]
+    if level == LEVEL_SAFE:
+        n = update.get("not_you", 0) + sum(f.get("affects", "maybe") == "maybe" for f in update["findings"])
+        return text["v_safe_n"].format(n=n) if n else text["v_safe"]
+    top = next((f for f in update["findings"] if f.get("affects", "maybe") != "no"), None)
+    if top is None:
+        return text["v_check"].format(what="?")
+    return text[f"v_{level}"].format(what=f"{_short(top['title'] or top['text'], 60)} ({reason(top, text)})")
+
+
+def reason(finding: dict[str, Any], text: dict[str, str]) -> str:
+    """Why a finding touches this system, in a few words."""
+    if finding.get("affects", "maybe") != "yes":
+        return text["maybe"]
+    if finding["used_in"]:
+        return text["e_used"].format(where=finding["used_in"][0].split(":", 1)[1].strip())
+    if finding["source"] in ("log", "repair"):
+        return text["e_ha"]
+    if finding["source"] == "option":
+        return text["e_option"].format(where=finding["title"])
+    kind, _, where = (finding.get("evidence") or [":"])[0].partition(":")
+    key = {"entity": "e_entity", "yaml": "e_yaml", "integration": "e_integration"}.get(kind)
+    return text[key].format(where=where) if key else finding["text"][:40]
+
+
+def _short(line: str, limit: int) -> str:
+    return line if len(line) <= limit else line[: limit - 1].rsplit(" ", 1)[0] + "…"
 
 
 def _points(update: dict[str, Any], text: dict[str, str], limit: int) -> list[str]:
     points = []
-    for finding in [f for f in update["findings"] if not f["general"]][:limit]:
+    for finding in [f for f in update["findings"] if f.get("affects", "maybe") != "no"][:limit]:
         line = f"{finding['title']}: {finding['text']}" if finding["title"] else finding["text"]
         line = line if len(line) <= 120 else line[:119].rsplit(" ", 1)[0] + "…"
-        if finding["used_in"]:
-            line += f" ({text['used_in']}: {finding['used_in'][0].split(':', 1)[1].strip()})"
-        points.append(line)
+        points.append(f"{line} ({reason(finding, text)})")
     return points
 
 

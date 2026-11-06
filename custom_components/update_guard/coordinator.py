@@ -23,7 +23,7 @@ from homeassistant.util import dt as dt_util
 from . import notes, usage
 from .after import AfterCheck
 from .ai import AiReview
-from .notifier import Notifier
+from .notifier import NOTIFY_TEXT, Notifier, reason, verdict
 from .const import (
     CONF_AI,
     HACS_JSON,
@@ -71,6 +71,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._hacs_min: dict[str, str | None] = {}
         self.deprecations = usage.DeprecationLog(hass)
         self._index: list[tuple[str, str, str]] = []
+        self._yaml: set[str] | None = None
         self.notifier = Notifier(hass)
         self.ai = AiReview(hass)
         self.after = AfterCheck(hass, self)
@@ -98,6 +99,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.after.async_scan()
         registry = er.async_get(self.hass)
         self._index = await usage.config_index(self.hass)
+        self._yaml = await usage.yaml_domains(self.hass)
         updates: list[dict[str, Any]] = []
         core_seen = False
 
@@ -127,6 +129,8 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if ai_entity := self.config_entry.options.get(CONF_AI):
             await self.ai.async_review(ai_entity, updates)
 
+        for update in updates:
+            update["verdict"] = verdict(update, self.hass.config.language)
         updates.sort(key=lambda u: (LEVELS.index(u["level"]), u["kind"] != KIND_CORE, u["name"].lower()))
         level = updates[0]["level"] if updates else LEVEL_NONE
         self._sync_issues(updates)
@@ -135,7 +139,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "level": level,
             "updates": updates,
             # General notes (not tied to an integration) are listed but not counted.
-            "findings": sum(1 for u in updates for f in u["findings"] if not f["general"]),
+            "findings": sum(1 for u in updates for f in u["findings"] if f.get("affects") != "no"),
             "checked": dt_util.utcnow().isoformat(),
         }
 
@@ -162,6 +166,9 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             findings.extend(self.deprecations.findings(installed, latest))
             findings.extend(await usage.repair_findings(self.hass, installed, latest))
         usage.mark_usage(findings, self._index)
+        usage.mark_entities(findings, usage.entity_terms(self.hass, {d for f in findings for d in f.domains}))
+        for finding in findings:
+            notes.judge(finding, self._yaml)
         return _result(
             KIND_CORE,
             _CORE_TITLE,
@@ -191,6 +198,9 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             seen = {f.text for f in options}
             findings = options + [f for f in findings if f.text not in seen]
         usage.mark_usage(findings, self._index)
+        usage.mark_entities(findings, self._own_terms(kind, entry))
+        for finding in findings:
+            notes.judge(finding)
         name = attrs.get("title") or attrs.get("friendly_name") or state.entity_id
         return _result(
             kind,
@@ -215,6 +225,17 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 keys |= notes.option_keys(dict(config_entry.data)) | notes.option_keys(dict(config_entry.options))
             return keys
         return set()
+
+    def _own_terms(self, kind: str, entry: er.RegistryEntry | None) -> dict[str, str]:
+        """Entities of what is being updated: the HACS integration, or the device for firmware."""
+        if entry is None:
+            return {}
+        if kind == KIND_HACS:
+            domain = self._hacs_domain(entry.unique_id)
+            return usage.entity_terms(self.hass, {domain}) if domain else {}
+        if kind == KIND_OTHER and entry.device_id:
+            return usage.entity_terms(self.hass, device_id=entry.device_id)
+        return {}
 
     def _hacs_domain(self, repository_id: str) -> str | None:
         """Integration domain of a HACS repository; None for cards, themes etc."""
@@ -315,7 +336,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
             issue_id = f"risk_{update['entity_id'] or 'core'}"
             wanted.add(issue_id)
-            lines = [_line(f, self.hass.config.language) for f in update["findings"] if not f["general"]]
+            lines = [_line(f, self.hass.config.language) for f in update["findings"] if f.get("affects") != "no"]
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
@@ -328,7 +349,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "name": update["name"],
                     "installed": update["installed"] or "?",
                     "latest": update["latest"] or "?",
-                    "findings": "\n".join(lines),
+                    "findings": "\n".join([f"**{update['verdict']}**", "", *lines]),
                 },
                 learn_more_url=update["release_url"],
             )
@@ -350,7 +371,7 @@ def _result(
     **extra: Any,
 ) -> dict[str, Any]:
     # Things to act on first, general notes last.
-    findings.sort(key=lambda f: (not f.severe, f.general, not f.used_in))
+    findings.sort(key=notes.sort_key)
     level = notes.level_of(findings)
     if notes_missing and level == LEVEL_SAFE:
         # Nothing found because nothing could be read: that is not safe.
@@ -366,6 +387,8 @@ def _result(
         "ai_checked": False,
         "release_url": url,
         "findings": [f.as_dict() for f in findings[:MAX_FINDINGS]],
+        # Changes found that don't touch this system.
+        "not_you": sum(f.affects == "no" and not f.general for f in findings) + extra.get("ignored", 0),
         **extra,
     }
 
@@ -377,6 +400,8 @@ def _line(finding: dict[str, Any], language: str) -> str:
     title = finding["title"]
     head = " ".join(p for p in (prefix, f"**{title}**" if title else "") if p)
     line = f"- {head} {finding['text']}" if head else f"- {finding['text']}"
+    if not finding["used_in"]:
+        line += f" _({reason(finding, NOTIFY_TEXT.get(language.split('-')[0], NOTIFY_TEXT['en']))})_"
     if finding["used_in"]:
         places = [labels.get(kind, kind) + ":" + name for kind, name in (u.split(":", 1) for u in finding["used_in"])]
         line += f"\n  {labels['used_in']}: " + ", ".join(places)

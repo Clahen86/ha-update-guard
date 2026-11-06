@@ -141,7 +141,9 @@ def _apply(update: dict[str, Any], answer: dict[str, dict[str, Any]]) -> None:
         finding["ai"] = verdict["reason"]
         finding["severe"] = verdict["relevant"] and verdict["severe"]
         finding["general"] = not verdict["relevant"]
-    update["findings"].sort(key=lambda f: (not f["severe"], f["general"], not f["used_in"]))
+        if finding["general"]:
+            finding["affects"] = "no"
+    update["findings"].sort(key=notes.sort_key)
     level = notes.level_of([notes.Finding(**f) for f in update["findings"]])
     update["level"] = LEVEL_UNKNOWN if level == LEVEL_SAFE and update["notes_missing"] else level
     update["ai_checked"] = True

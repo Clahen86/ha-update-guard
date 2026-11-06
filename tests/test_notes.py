@@ -56,8 +56,31 @@ def test_scan_changelog():
     findings = notes.scan_changelog(text)
     assert len(findings) == 2
     assert findings[0].severe and not findings[1].severe
-    assert notes.level_of(findings) == "wait"
+    # Breaking, but nothing here shows you use it: check, not wait.
+    for f in findings:
+        notes.judge(f)
+    assert findings[0].affects == "maybe" and notes.level_of(findings) == "check"
+    # Proof from this system makes it wait.
+    findings[0].used_in = ["automation: Lys"]
+    notes.judge(findings[0])
+    assert findings[0].affects == "yes" and notes.level_of(findings) == "wait"
+    # A small change with no trace of it here is safe.
+    assert notes.level_of([findings[1]]) == "safe"
     assert notes.scan_changelog("- Bump base image\n- Fix typo") == []
+
+
+def test_judge_yaml_and_removed_integrations():
+    yaml_only = notes.Finding(title="Foo", text="The YAML configuration of Foo was removed", domains=["foo"])
+    notes.judge(yaml_only, {"sensor", "template"})
+    assert yaml_only.affects == "no"
+    notes.judge(yaml_in := notes.Finding(title="Foo", text="The YAML setup of foo changed", domains=["foo"]), {"foo"})
+    assert yaml_in.affects == "yes" and yaml_in.evidence == ["yaml:foo"]
+    removed = notes.Finding(title="Bar", text="x", domains=["bar"], severe=True)
+    notes.judge(removed, set())
+    assert removed.affects == "yes" and notes.level_of([removed]) == "wait"
+    other = notes.Finding(title="Baz", text="Attribute changed", domains=["baz"])
+    notes.judge(other, set())
+    assert other.affects == "maybe" and notes.level_of([other]) == "check"
 
 
 def test_scan_changelog_skips_developer_changes():

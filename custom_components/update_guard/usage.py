@@ -9,7 +9,7 @@ import time
 from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers import entity_registry as er, issue_registry as ir
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.translation import async_get_translations
 
@@ -161,6 +161,67 @@ def mark_usage(findings: list[notes.Finding], index: list[tuple[str, str, str]])
             needle = keyword.lower()
             used.extend(f"{kind}: {name}" for kind, name, text in index if needle in text)
         finding.used_in = sorted(set(used))[:8]
+
+
+# Attributes almost every entity has: a changelog naming them says nothing about you.
+_COMMON_ATTRIBUTES = {
+    "friendly_name", "unit_of_measurement", "device_class", "state_class", "supported_features", "entity_picture",
+    "attribution", "assumed_state", "last_reset", "restored", "options", "editable",
+}
+
+
+def entity_terms(hass: HomeAssistant, domains: set[str] | None = None, device_id: str | None = None) -> dict[str, str]:
+    """Names to look for -> the entity they belong to, for the integrations (or the device) being updated.
+
+    Entity IDs, translation keys (what a changelog calls "the `battery_level` sensor") and attribute names.
+    Only what exists in this system, so the same changelog gives different answers in different homes."""
+    registry = er.async_get(hass)
+    terms: dict[str, str] = {}
+    for entry in registry.entities.values():
+        if entry.disabled_by:
+            continue
+        if not ((domains and entry.platform in domains) or (device_id and entry.device_id == device_id)):
+            continue
+        terms.setdefault(entry.entity_id.lower(), entry.entity_id)
+        if entry.translation_key and len(entry.translation_key) >= 6:
+            terms.setdefault(entry.translation_key.lower(), entry.entity_id)
+        if state := hass.states.get(entry.entity_id):
+            for attribute in state.attributes:
+                name = str(attribute).lower()
+                if len(name) >= 6 and "_" in name and name not in _COMMON_ATTRIBUTES:
+                    terms.setdefault(name, entry.entity_id)
+    return terms
+
+
+def mark_entities(findings: list[notes.Finding], terms: dict[str, str]) -> None:
+    """Add the entities a finding names (by ID, key or attribute) to its evidence."""
+    if not terms:
+        return
+    for finding in findings:
+        found = {f"entity:{terms[k.lower()]}" for k in finding.keywords if k.lower() in terms}
+        if found:
+            finding.evidence = sorted(set(finding.evidence) | found)[:8]
+
+
+async def yaml_domains(hass: HomeAssistant) -> set[str] | None:
+    """Integrations set up in YAML here: top-level keys and `platform:` entries. None if it can't be read.
+
+    Only the names are kept, never values."""
+    from homeassistant.config import async_hass_config_yaml
+
+    try:
+        config = await async_hass_config_yaml(hass)
+    except Exception:  # noqa: BLE001 - a broken YAML file must not stop the check
+        _LOGGER.debug("Could not read the YAML configuration", exc_info=True)
+        return None
+    domains: set[str] = set()
+    for key, value in config.items():
+        domain = str(key).split(" ")[0]
+        domains.add(domain)
+        for item in value if isinstance(value, list) else [value]:
+            if isinstance(item, dict) and isinstance(item.get("platform"), str):
+                domains.add(item["platform"])
+    return domains
 
 
 def _breaks_by(breaks: str, installed: str, target: str) -> bool:
