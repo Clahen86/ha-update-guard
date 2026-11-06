@@ -27,14 +27,29 @@ Every month Home Assistant ships changes that can break things, and so do apps (
 
 ### The verdict
 
-- 🟢 **Safe** – nothing in the notes touches your setup.
-- 🟡 **Check first** – something you use changes. Read the points before you update.
-- 🔴 **Wait** – something you use is removed, renamed or needs a newer Home Assistant.
+- 🟢 **Safe** – nothing in the notes is found in your system.
+- 🟡 **Check first** – it changes an integration you have, but nothing shows you use the changed part; or the developer says you must act; or other people report problems with this version.
+- 🔴 **Wait** – something severe, **and proof from your own system**: an automation, script or dashboard uses it, an entity or attribute of yours is named, it's in your YAML, it's an option you set, Home Assistant itself warns, or it needs a newer Home Assistant.
 - ⚪ **Unknown** – there were no release notes to read (or they couldn't be fetched), so nothing can be said. Never shown as safe.
 
 > **Green is not a guarantee.** It means nothing in the release notes touches your setup. Changes that the developers didn't write down can't be found. Keep taking backups.
 
+Every update gets **one line**, e.g. *"Wait – `wifi.fast_connect` removed (used in Living room light)"*. Every point says whether it's proven in your system (●) or only maybe (○). The same update can get a different answer in different homes, because it is your system that is searched – nothing is hard-coded.
+
 You see it in three places: the sensor, **Settings → Repairs** (one repair per risky update, with what to look at and a link to the release notes), and the attributes of the sensor for dashboards and automations.
+
+### More it does
+
+- **Panel** in the sidebar with every update, the verdict, why, and buttons.
+- **Safe update** (button in the panel, or the action `update_guard.safe_update`): refuses what says Wait, needs 2 GB free disk space, waits while the devices you chose are running (washing machine, car charger), and only takes a backup when last night's automatic backup doesn't cover it (cards and integrations never need one: they go back by installing the old version). Now or **tonight** at 04:30.
+- **Go back:** if something stops working after an update, the repair has a button that installs the old version again (HACS) or restores the app's backup.
+- **Other people's reports:** new GitHub issues that name the new version. Before a Home Assistant update it also searches your HACS projects for issues about the new Home Assistant version.
+- **Skipped versions:** jumping from 1.9 to 2.1 reads the notes of 2.0 too.
+- **Wait for .1** (option): a new monthly release is Check first until .1 is out or a week has passed.
+- **Security fixes** are marked 🔒 and listed first. **New for you:** new features that name something you have.
+- **Dead projects:** HACS projects that are archived or unchanged for two years.
+- **Auto-install** (option, off by default): safe cards and themes at night. Never integrations, apps or Home Assistant.
+- Firmware without release notes stays ⚪ but doesn't turn the overall assessment Unknown.
 
 ### After the update
 
@@ -166,14 +181,25 @@ Den skriver "efter", ikke "på grund af". Den kan ikke vide, hvorfor noget holdt
 
 ### Vurderingen
 
-- 🟢 **Sikker:** Intet i release notes rører din opsætning.
-- 🟡 **Tjek først:** Noget, du bruger, bliver ændret.
-- 🔴 **Vent:** Noget, du bruger, bliver fjernet eller omdøbt, eller opdateringen kræver en nyere HA.
+- 🟢 **Sikker:** Intet i release notes findes i dit system.
+- 🟡 **Tjek først:** En integration, du har, ændres, men intet viser, at du bruger den ændrede del. Eller udvikleren skriver, at du skal gøre noget, eller andre melder fejl i versionen.
+- 🔴 **Vent:** Noget alvorligt, **og bevis fra dit eget system**: en automation, et script eller dashboard bruger det, din enhed eller attribut nævnes, det står i din YAML, det er din egen indstilling, HA advarer selv, eller den kræver en nyere HA.
+
+Hver opdatering får **én linje**, fx *"Vent – `wifi.fast_connect` fjernet (bruges i Lys stue)"*. Den samme opdatering kan give forskelligt svar i forskellige hjem, fordi det er dit system, der søges i.
 - ⚪ **Ukendt:** Der var ingen release notes at læse, eller de kunne ikke hentes. Den bliver aldrig vist som sikker.
 
 > **Grøn er ikke en garanti.** Den betyder, at intet i release notes rører din opsætning. Ændringer, som udviklerne ikke har skrevet ned, kan den ikke finde. Tag stadig backup.
 
-Du ser vurderingen på sensoren og under **Indstillinger → Reparationer**.
+Du ser vurderingen i **panelet** i sidemenuen, på sensoren og under **Indstillinger → Reparationer**.
+
+### Mere den kan
+
+- **Opdater sikkert:** siger nej til Vent, kræver 2 GB ledig plads, venter mens dine valgte enheder kører, og tager kun backup, hvis nattens ikke dækker. Nu eller **i nat** kl. 04:30.
+- **Gå tilbage:** går noget i stykker, har reparationen en knap, der installerer den gamle version igen.
+- **Andre melder fejl:** nye GitHub-issues, der nævner versionen. Før en HA-opdatering tjekker den også dine HACS-projekter.
+- **Oversprungne versioner** læses med. **Vent på .1** (valgfrit). **🔒 Sikkerhedsrettelser** først. **Nyt for dig.**
+- **Døde projekter:** arkiveret eller uændret i to år.
+- **Auto-installér** sikre kort og temaer om natten (valgfrit, slået fra).
 
 ### Installation
 

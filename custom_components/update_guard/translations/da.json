@@ -27,6 +27,15 @@
           },
           "checked": {
             "name": "Tjekket"
+          },
+          "dead": {
+            "name": "Døde projekter"
+          },
+          "planned": {
+            "name": "Planlagt"
+          },
+          "disk_free": {
+            "name": "Ledig diskplads"
           }
         }
       },
@@ -51,7 +60,19 @@
     },
     "after_broken": {
       "title": "Efter opdatering af {names} virker {count} ikke",
-      "description": "Det her virkede før opdateringen og virkede stadig ikke 5 og 30 minutter efter:\n\n{findings}\n\nGenstart integrationen eller appen, læs release notes, eller gendan en backup. Reparationen forsvinder af sig selv, når det hele virker igen."
+      "description": "Det her virkede før opdateringen og virkede stadig ikke 5 og 30 minutter efter:\n\n{findings}\n\nGenstart integrationen eller appen, læs release notes, eller gendan en backup. Reparationen forsvinder af sig selv, når det hele virker igen.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Gå tilbage til versionen før",
+            "description": "Installerer {names} igen. En app gendannes fra den backup, Supervisor tog før opdateringen."
+          }
+        },
+        "abort": {
+          "no_rollback": "Den kan ikke gå tilbage af sig selv. Gendan en backup under Indstillinger → System → Backups.",
+          "not_loaded": "Update Guard kører ikke."
+        }
+      }
     }
   },
   "options": {
@@ -62,11 +83,17 @@
         "data": {
           "notify": "Send til",
           "notify_level": "Besked om",
-          "ai_task": "AI-kontrol (valgfri)"
+          "ai_task": "AI-kontrol (valgfri)",
+          "wait_for_fix": "Vent på første rettelse af en ny Home Assistant-version",
+          "blockers": "Opdater ikke, mens disse kører",
+          "auto_safe": "Installer sikre kort og temaer af sig selv om natten"
         },
         "data_description": {
           "notify": "Én eller flere, fx notify.mobile_app_din_telefon. Lad den være tom for ingen beskeder.",
-          "ai_task": "En AI Task-enhed, fx Google Gemini. Den dobbelttjekker de linjer i changelogs for apps, HACS og firmware, som nøgleordene har fundet, og fjerner falske alarmer. Kun de linjer og navnene på dine indstillinger og enheder sendes – aldrig værdier. Lad den være tom for ingen AI."
+          "ai_task": "En AI Task-enhed, fx Google Gemini. Den dobbelttjekker de linjer i changelogs for apps, HACS og firmware, som nøgleordene har fundet, og fjerner falske alarmer. Kun de linjer og navnene på dine indstillinger og enheder sendes – aldrig værdier. Lad den være tom for ingen AI.",
+          "wait_for_fix": "En ny månedsversion (fx 2026.12.0) står som Tjek først, til 2026.12.1 er ude eller der er gået en uge. De fleste fejl rettes i .1.",
+          "blockers": "Fx vaskemaskinen eller bilopladeren. Opdater sikkert venter, til de er slukket (op til 6 timer).",
+          "auto_safe": "Kun kort og temaer, der er vurderet Sikker, kl. 04:30. Integrationer, apps og Home Assistant installeres aldrig af sig selv."
         }
       }
     }
@@ -78,6 +105,52 @@
         "check": "Kun dem, der skal kigges på (tjek, vent eller ukendt)",
         "wait": "Kun dem, der skal ventes med"
       }
+    },
+    "when": {
+      "options": {
+        "now": "Nu",
+        "tonight": "I nat"
+      }
+    }
+  },
+  "services": {
+    "safe_update": {
+      "name": "Opdater sikkert",
+      "description": "Installerer en opdatering sikkert: ikke hvis Update Guard siger vent, kun med nok diskplads, ikke mens de valgte enheder kører, og kun med backup, hvis nattens ikke dækker.",
+      "fields": {
+        "entity_id": {
+          "name": "Opdatering",
+          "description": "Opdaterings-entiteten."
+        },
+        "when": {
+          "name": "Hvornår",
+          "description": "Nu, eller i nat kl. 04:30."
+        },
+        "force": {
+          "name": "Også selvom den siger vent",
+          "description": "Installer selvom Update Guard siger vent."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Update Guard kører ikke."
+    },
+    "not_pending": {
+      "message": "{entity_id} har ingen ventende opdatering."
+    },
+    "is_wait": {
+      "message": "Ikke installeret: {verdict}"
+    },
+    "disk": {
+      "message": "Ikke installeret: kun {free} GB ledig diskplads."
+    },
+    "no_entity": {
+      "message": "{name} kan ikke installeres fra Home Assistant."
+    },
+    "no_rollback": {
+      "message": "Den kan ikke gå tilbage af sig selv. Gendan en backup."
     }
   }
 }

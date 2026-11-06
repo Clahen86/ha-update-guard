@@ -1,0 +1,19 @@
+safe_update:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          domain: update
+    when:
+      default: now
+      selector:
+        select:
+          translation_key: when
+          options:
+            - now
+            - tonight
+    force:
+      default: false
+      selector:
+        boolean:

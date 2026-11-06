@@ -268,7 +268,7 @@ def _logical_lines(text: str | None) -> list[str]:
 
 
 def _section(line: str) -> str | None:
-    """The kind of section a heading starts ("breaking", "minor" or ""), or None if it's not a heading."""
+    """The kind of section a heading starts ("breaking", "minor", "feature" or ""), or None if not a heading."""
     if match := _MD_HEADING.match(line):
         heading = next(g for g in match.groups() if g is not None)
     elif _PLAIN_HEADING.match(line):
@@ -277,7 +277,9 @@ def _section(line: str) -> str | None:
         return None
     if _BREAKING_SECTION.search(heading):
         return "breaking"
-    return "minor" if _MINOR_SECTION.search(heading) else ""
+    if _MINOR_SECTION.search(heading):
+        return "minor"
+    return "feature" if _FEATURE_SECTION.search(heading) else ""
 
 
 def _harmless(line: str, section: str) -> bool:
@@ -325,6 +327,57 @@ def judge(finding: Finding, yaml_domains: set[str] | None = None) -> None:
         finding.affects = "maybe"
 
 
+# A fix for a security hole.
+SECURITY = re.compile(
+    r"\bCVE-\d{4}-\d+|\bGHSA-|vulnerabilit|security (?:fix|issue|update|patch|advisory|release|hole|problem)|"
+    r"fix(?:es|ed)? (?:a |an |the )?(?:\w+ )?security|\bXSS\b|remote code execution",
+    re.I,
+)
+_FEATURE_SECTION = re.compile(r"feature|enhancement|improvement|highlight|what'?s new|\bnew\b|added", re.I)
+_NEWS_START = re.compile(r"^(?:feat(?:\([^)]*\))?:|add(?:ed|s)?\b|new\b|support(?:s|ed)? for\b|now supports?\b)", re.I)
+
+
+def scan_news(text: str, terms: set[str], limit: int = 5) -> list[str]:
+    """New features that name something you have (an entity, device model, option or integration)."""
+    if not text or not terms:
+        return []
+    patterns = [re.compile(rf"(?<![\w.]){re.escape(t)}(?![\w])", re.I) for t in sorted(terms) if len(t) >= 4]
+    found: list[str] = []
+    section = ""
+    for raw in _logical_lines(text):
+        if (heading := _section(raw)) is not None:
+            section = heading
+            continue
+        line = re.sub(r"^[\s>*#-]+", "", raw).strip()
+        if section != "feature" and not _NEWS_START.match(line):
+            continue
+        if section in ("breaking", "minor") or _DEV_PREFIX.match(line):
+            continue
+        if any(p.search(line) for p in patterns):
+            item = shorten(clean(line), 160)
+            if item not in found:
+                found.append(item)
+        if len(found) >= limit:
+            break
+    return found
+
+
+def core_news(post: str, used: set[str], limit: int = 5) -> list[str]:
+    """Paragraphs of a release post before the breaking changes that are about integrations you use."""
+    head = (post or "").split("## Backward-incompatible changes")[0]
+    found = []
+    for block in re.split(r"\n\s*\n", head):
+        domains = set(_INTEGRATION_LINK.findall(block)) & used
+        if not domains or block.lstrip().startswith(("#", "[", "<", "{%")):
+            continue
+        text = shorten(plain(block), 200)
+        if len(text) > 40:
+            found.append(text)
+        if len(found) >= limit:
+            break
+    return found
+
+
 def level_of(findings: list[Finding]) -> str:
     """Overall level for one update, from what touches this system.
 
@@ -334,7 +387,7 @@ def level_of(findings: list[Finding]) -> str:
     if any(f.severe and f.affects == "yes" and not f.general for f in findings):
         return LEVEL_WAIT
     if any(
-        not f.general and (f.affects == "yes" or (f.affects == "maybe" and (f.severe or f.source == "release" or _ACTION.search(f.text))))
+        not f.general and (f.affects == "yes" or (f.affects == "maybe" and (f.severe or f.source in ("release", "reports") or _ACTION.search(f.text))))
         for f in findings
     ):
         return LEVEL_CHECK

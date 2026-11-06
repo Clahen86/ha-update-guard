@@ -24,7 +24,8 @@ from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 
 from . import notes
-from .const import CONF_NOTIFY_LEVEL, DOMAIN, KIND_APP, KIND_CORE, KIND_HACS, KIND_OTHER, LABELS, NOTIFY_TEXT
+from .install import app_slug, can_roll_back
+from .const import CONF_NOTIFY_LEVEL, DOMAIN, STORE_PLATFORMS, KIND_APP, KIND_CORE, KIND_HACS, KIND_OTHER, LABELS, NOTIFY_TEXT
 
 if TYPE_CHECKING:
     from .coordinator import UpdateGuardCoordinator
@@ -139,13 +140,13 @@ class AfterCheck:
         if platform == "hassio" and entry and not entry.unique_id.startswith(("home_assistant_", "supervisor")):
             update["kind"] = KIND_APP
             update["domains"] = sorted(app_domains(entry.unique_id.removesuffix("_version_latest")))
-        elif platform == "hacs" and entry:
+        elif platform in STORE_PLATFORMS and entry:
             update["kind"] = KIND_HACS
-            update["domains"] = [d] if (d := self.coordinator._hacs_domain(entry.unique_id)) else []
+            update["domains"] = [d] if (d := self.coordinator._hacs_domain(entry.unique_id, entry)) else []
         else:
             update["kind"] = KIND_OTHER
             # Firmware of one device: that device's entities belong to it.
-            if entry and entry.device_id and platform not in ("hassio", "hacs"):
+            if entry and entry.device_id and platform != "hassio" and platform not in STORE_PLATFORMS:
                 update["device"] = entry.device_id
             elif platform:
                 update["domains"] = [platform]
@@ -227,11 +228,19 @@ class AfterCheck:
             lines += [f"- {e}" for e in errors]
         severe = bool(related["entities"] or related["entries"])
         issue_id = f"after_{int(batch['at'])}"
+        # What broke belongs to the update: offer to go back to the version before it.
+        rollback = [
+            {"entity_id": u["entity_id"], "version": u["from"], "kind": u["kind"], "name": u["name"],
+             "slug": app_slug(self.hass, u["entity_id"]) if u["kind"] == KIND_APP else None}
+            for u in batch["updates"]
+            if severe and u.get("entity_id") and can_roll_back(self.hass, u["entity_id"], u["kind"])
+        ]
         ir.async_create_issue(
             self.hass,
             DOMAIN,
             issue_id,
-            is_fixable=False,
+            is_fixable=bool(rollback),
+            data={"rollback": rollback} if rollback else None,
             is_persistent=True,
             severity=ir.IssueSeverity.ERROR if severe else ir.IssueSeverity.WARNING,
             translation_key="after_broken",

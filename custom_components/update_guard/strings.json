@@ -27,6 +27,15 @@
           },
           "checked": {
             "name": "Checked"
+          },
+          "dead": {
+            "name": "Dead projects"
+          },
+          "planned": {
+            "name": "Planned"
+          },
+          "disk_free": {
+            "name": "Free disk space"
           }
         }
       },
@@ -51,7 +60,19 @@
     },
     "after_broken": {
       "title": "After updating {names}, {count} stopped working",
-      "description": "This worked before the update and still didn't work 5 and 30 minutes after it:\n\n{findings}\n\nRestart the integration or app, check its release notes, or restore a backup. This repair goes away by itself when everything works again."
+      "description": "This worked before the update and still didn't work 5 and 30 minutes after it:\n\n{findings}\n\nRestart the integration or app, check its release notes, or restore a backup. This repair goes away by itself when everything works again.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Go back to the version before",
+            "description": "Installs {names} again. An app is restored from the backup the Supervisor took before the update."
+          }
+        },
+        "abort": {
+          "no_rollback": "It can't go back by itself. Restore a backup under Settings → System → Backups.",
+          "not_loaded": "Update Guard isn't running."
+        }
+      }
     }
   },
   "options": {
@@ -62,11 +83,17 @@
         "data": {
           "notify": "Send to",
           "notify_level": "Notify about",
-          "ai_task": "AI check (optional)"
+          "ai_task": "AI check (optional)",
+          "wait_for_fix": "Wait for the first fix of a new Home Assistant release",
+          "blockers": "Don't update while these are running",
+          "auto_safe": "Install safe cards and themes by themselves at night"
         },
         "data_description": {
           "notify": "One or more, e.g. notify.mobile_app_your_phone. Leave empty for no notifications.",
-          "ai_task": "An AI Task entity, e.g. Google Gemini. It double-checks lines found by keywords in app, HACS and firmware changelogs and drops false alarms. Only those lines and the names of your options and devices are sent – never values. Leave empty to not use AI."
+          "ai_task": "An AI Task entity, e.g. Google Gemini. It double-checks lines found by keywords in app, HACS and firmware changelogs and drops false alarms. Only those lines and the names of your options and devices are sent – never values. Leave empty to not use AI.",
+          "wait_for_fix": "A new monthly release (e.g. 2026.12.0) is marked Check first until 2026.12.1 or a week has passed. Most problems are fixed in .1.",
+          "blockers": "E.g. the washing machine or the car charger. Safe update waits until they are off (up to 6 hours).",
+          "auto_safe": "Only cards and themes rated Safe, at 04:30. Integrations, apps and Home Assistant are never installed by themselves."
         }
       }
     }
@@ -78,6 +105,52 @@
         "check": "Only updates that need a look (check, wait or unknown)",
         "wait": "Only updates to wait with"
       }
+    },
+    "when": {
+      "options": {
+        "now": "Now",
+        "tonight": "Tonight"
+      }
+    }
+  },
+  "services": {
+    "safe_update": {
+      "name": "Safe update",
+      "description": "Installs an update the safe way: not if Update Guard says wait, only with enough disk space, not while the chosen devices run, and with a backup only when last night's doesn't cover it.",
+      "fields": {
+        "entity_id": {
+          "name": "Update",
+          "description": "The update entity."
+        },
+        "when": {
+          "name": "When",
+          "description": "Now, or tonight at 04:30."
+        },
+        "force": {
+          "name": "Even if it says wait",
+          "description": "Install although Update Guard says to wait."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Update Guard isn't running."
+    },
+    "not_pending": {
+      "message": "{entity_id} has no pending update."
+    },
+    "is_wait": {
+      "message": "Not installed: {verdict}"
+    },
+    "disk": {
+      "message": "Not installed: only {free} GB free disk space."
+    },
+    "no_entity": {
+      "message": "{name} can't be installed from Home Assistant."
+    },
+    "no_rollback": {
+      "message": "It can't go back by itself. Restore a backup."
     }
   }
 }

@@ -326,7 +326,8 @@ async def test_options_flow(hass: HomeAssistant, aioclient_mock) -> None:
         result["flow_id"], {"notify": ["notify.mobile_app_phone"], "notify_level": "check"}
     )
     await hass.async_block_till_done()
-    assert entry.options == {"notify": ["notify.mobile_app_phone"], "notify_level": "check"}
+    assert entry.options["notify"] == ["notify.mobile_app_phone"] and entry.options["notify_level"] == "check"
+    assert entry.options["wait_for_fix"] is False and entry.options["blockers"] == []
 
 
 async def test_missing_notes_are_unknown_not_safe(hass: HomeAssistant, aioclient_mock) -> None:

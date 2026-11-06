@@ -1,11 +1,18 @@
 {
   "domain": "update_guard",
   "name": "Update Guard",
+  "after_dependencies": [
+    "backup",
+    "hassio"
+  ],
   "codeowners": [
     "@Clahen86"
   ],
   "config_flow": true,
   "dependencies": [
+    "frontend",
+    "http",
+    "panel_custom",
     "repairs",
     "update"
   ],
@@ -15,5 +22,5 @@
   "issue_tracker": "https://github.com/Clahen86/ha-update-guard/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.5.0"
+  "version": "0.6.0"
 }

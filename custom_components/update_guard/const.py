@@ -67,6 +67,19 @@ LABELS = {
 CONF_AI = "ai_task"
 CONF_NOTIFY = "notify"
 CONF_NOTIFY_LEVEL = "notify_level"
+# Wait with a new monthly Home Assistant release (X.Y.0) until X.Y.1 or a week has passed.
+CONF_WAIT_FIX = "wait_for_fix"
+WAIT_FIX_DAYS = 7
+# Devices that must not be running while an update is installed (washing machine, car charging).
+CONF_BLOCKERS = "blockers"
+# Install cards and themes by themselves at night when they are safe.
+CONF_AUTO_SAFE = "auto_safe"
+# Integrations from HACS (and Home Assistant's own marketplace) are updated by these platforms.
+STORE_PLATFORMS = ("hacs", "marketplace")
+# A project is dead when it is archived, or nothing was pushed for this long.
+DEAD_DAYS = 730
+# Other people's issues that name the new version: this many is a reason to look first.
+REPORTS_MIN = 2
 # What is announced: everything, everything that needs a look (incl. unknown), or only wait.
 NOTIFY_ALL = "safe"
 NOTIFY_LEVELS = ["safe", "check", "wait"]
@@ -101,6 +114,13 @@ NOTIFY_TEXT = {
         "e_integration": "you use {where}",
         "e_option": "your option {where}",
         "e_ha": "Home Assistant itself warns",
+        "f_reports": "{n} new issues on GitHub mention {version}",
+        "f_compat": "{n} new issues on GitHub mention Home Assistant {version}",
+        "f_wait_fix": "New monthly release: wait for {version}.1 or until {date}",
+        "f_disk": "Only {free} GB free disk space",
+        "dead_archived": "archived by its developer",
+        "dead_old": "no changes since {year}",
+        "skipped": "{n} versions in one",
     },
     "da": {
         "wait": "Vent",
@@ -125,5 +145,12 @@ NOTIFY_TEXT = {
         "e_integration": "du bruger {where}",
         "e_option": "din indstilling {where}",
         "e_ha": "Home Assistant advarer selv",
+        "f_reports": "{n} nye fejlmeldinger på GitHub nævner {version}",
+        "f_compat": "{n} nye fejlmeldinger på GitHub nævner Home Assistant {version}",
+        "f_wait_fix": "Ny månedsudgivelse: vent på {version}.1 eller til {date}",
+        "f_disk": "Kun {free} GB ledig diskplads",
+        "dead_archived": "arkiveret af udvikleren",
+        "dead_old": "ingen ændringer siden {year}",
+        "skipped": "{n} versioner i én",
     },
 }

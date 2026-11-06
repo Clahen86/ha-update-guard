@@ -10,7 +10,17 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResu
 from homeassistant.core import callback
 from homeassistant.helpers import selector
 
-from .const import CONF_AI, CONF_NOTIFY, CONF_NOTIFY_LEVEL, DOMAIN, NOTIFY_ALL, NOTIFY_LEVELS
+from .const import (
+    CONF_AI,
+    CONF_AUTO_SAFE,
+    CONF_BLOCKERS,
+    CONF_NOTIFY,
+    CONF_NOTIFY_LEVEL,
+    CONF_WAIT_FIX,
+    DOMAIN,
+    NOTIFY_ALL,
+    NOTIFY_LEVELS,
+)
 
 # Services that are not a phone or a list of phones.
 _SKIP = {"notify", "send_message", "persistent_notification"}
@@ -34,6 +44,7 @@ class UpdateGuardOptionsFlow(OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             return self.async_create_entry(data=user_input)
+        options = self.config_entry.options
         services = sorted(
             f"notify.{name}" for name in self.hass.services.async_services_for_domain("notify") if name not in _SKIP
         )
@@ -56,6 +67,11 @@ class UpdateGuardOptionsFlow(OptionsFlow):
                 vol.Optional(
                     CONF_AI, description={"suggested_value": self.config_entry.options.get(CONF_AI)}
                 ): selector.EntitySelector(selector.EntitySelectorConfig(domain="ai_task")),
+                vol.Optional(CONF_WAIT_FIX, default=options.get(CONF_WAIT_FIX, False)): selector.BooleanSelector(),
+                vol.Optional(CONF_BLOCKERS, default=options.get(CONF_BLOCKERS, [])): selector.EntitySelector(
+                    selector.EntitySelectorConfig(multiple=True)
+                ),
+                vol.Optional(CONF_AUTO_SAFE, default=options.get(CONF_AUTO_SAFE, False)): selector.BooleanSelector(),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)

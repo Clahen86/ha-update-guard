@@ -26,7 +26,7 @@ class AssessmentSensor(UpdateGuardEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = LEVELS
     # The details can be long and change rarely; keep them out of the database.
-    _unrecorded_attributes = frozenset({"updates"})
+    _unrecorded_attributes = frozenset({"updates", "dead", "planned", "disk_free"})
 
     @property
     def native_value(self) -> str:
@@ -34,7 +34,14 @@ class AssessmentSensor(UpdateGuardEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        return {"updates": self.coordinator.data["updates"], "checked": self.coordinator.data["checked"]}
+        data = self.coordinator.data
+        return {
+            "updates": data["updates"],
+            "checked": data["checked"],
+            "dead": data.get("dead", []),
+            "planned": data.get("planned", []),
+            "disk_free": data.get("disk_free"),
+        }
 
 
 class FindingsSensor(UpdateGuardEntity, SensorEntity):
