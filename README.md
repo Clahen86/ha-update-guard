@@ -38,6 +38,14 @@ Every update gets **one line**, e.g. *"Wait – `wifi.fast_connect` removed (use
 
 You see it in three places: the sensor, **Settings → Repairs** (one repair per risky update, with what to look at and a link to the release notes), and the attributes of the sensor for dashboards and automations.
 
+### The panel
+
+**Update Guard** in the sidebar shows every pending update, the verdict, why, and buttons to update safely now or tonight.
+
+<p align="center"><img src="docs/panel.png" alt="The Update Guard panel" width="360"> <img src="docs/settings.png" alt="Settings in the panel (dark theme)" width="360"></p>
+
+All settings are under **⚙️** in the panel and are saved right away: which phones get a message, what to be told about, wait for .1, devices that must not be interrupted (it suggests your washing machine and car charger), night install of safe cards and themes, and the AI check. They are also under **Settings → Devices & services → Update Guard → Configure**.
+
 ### More it does
 
 - **Panel** in the sidebar with every update, the verdict, why, and buttons.
@@ -80,7 +88,7 @@ That's it. It checks every 6 hours and right away whenever a new update shows up
 
 ### Notifications on your phone
 
-Go to **Settings → Devices & services → Update Guard → Configure** and pick one or more phones (`notify.mobile_app_…`). Every new update then sends a notification with the verdict, for example:
+Open **Update Guard → ⚙️** in the sidebar (or **Settings → Devices & services → Update Guard → Configure**) and tap one or more phones (`notify.mobile_app_…`). Every new update then sends a notification with the verdict, for example:
 
 > **🔴 Home Assistant Core 2026.11.0 – Wait**
 > 2026.11: MQTT: The `mqtt.publish` action now requires … (used in: Doorbell to broker)
@@ -105,7 +113,7 @@ Changelogs are free text, so a keyword search can still raise a false alarm, e.g
 4. In Home Assistant: **Settings → Devices & services → Add integration → Google Generative AI** → paste the key → **Submit**.
    - Already have Google Generative AI with another key? Add it once more with the new key – each key becomes its own entry.
 5. This creates an AI Task entity, e.g. `ai_task.google_ai_task`. Rename it to "Update Guard" so you know what it's for.
-6. **Settings → Devices & services → Update Guard → Configure → AI check** → pick that entity → **Submit**.
+6. **Update Guard → ⚙️ → AI check** in the sidebar → pick that entity. It's saved right away.
 
 Other AI Task integrations (OpenAI, Anthropic, Ollama …) work too.
 
@@ -192,6 +200,12 @@ Hver opdatering får **én linje**, fx *"Vent – `wifi.fast_connect` fjernet (b
 
 Du ser vurderingen i **panelet** i sidemenuen, på sensoren og under **Indstillinger → Reparationer**.
 
+### Panelet
+
+**Opdateringsvagt** i sidemenuen viser alle ventende opdateringer med dommen, hvorfor, og knapper til at opdatere sikkert nu eller i nat. Alle indstillinger ligger under **⚙️** og gemmes med det samme: telefoner, hvad du vil have besked om, vent på .1, enheder der ikke må afbrydes (den foreslår selv vaskemaskine og lader), natlig installation af sikre kort og temaer og AI-kontrol.
+
+<p align="center"><img src="docs/panel.png" alt="Panelet" width="300"> <img src="docs/settings.png" alt="Indstillinger i panelet" width="300"></p>
+
 ### Mere den kan
 
 - **Opdater sikkert:** siger nej til Vent, kræver 2 GB ledig plads, venter mens dine valgte enheder kører, og tager kun backup, hvis nattens ikke dækker. Nu eller **i nat** kl. 04:30.
@@ -213,7 +227,7 @@ Den tjekker hver 6. time og med det samme, når der kommer en ny opdatering.
 
 ### Besked på telefonen
 
-Gå til **Indstillinger → Enheder og tjenester → Update Guard → Konfigurer**, og vælg en eller flere telefoner (`notify.mobile_app_…`). Så får du en besked med vurderingen, hver gang der kommer en ny opdatering. Tryk på den for at åbne Reparationer. Du kan vælge, om du vil have besked om alle opdateringer, kun dem, der skal tjekkes, eller kun dem, du skal vente med.
+Åbn **Opdateringsvagt → ⚙️** i sidemenuen (eller **Indstillinger → Enheder og tjenester → Update Guard → Konfigurer**), og tryk på en eller flere telefoner (`notify.mobile_app_…`). Så får du en besked med vurderingen, hver gang der kommer en ny opdatering. Tryk på den for at åbne Reparationer. Du kan vælge, om du vil have besked om alle opdateringer, kun dem, der skal tjekkes, eller kun dem, du skal vente med.
 
 ### AI-kontrol (valgfri)
 
@@ -233,7 +247,7 @@ Changelogs er fri tekst, så nøgleord kan stadig give en falsk alarm, fx "32-bi
 4. I Home Assistant: **Indstillinger → Enheder og tjenester → Tilføj integration → Google Generative AI** → indsæt nøglen → **Send**.
    - Har du allerede Google Generative AI med en anden nøgle? Tilføj den én gang til med den nye nøgle. Hver nøgle bliver sin egen post.
 5. Der laves en AI Task-enhed, fx `ai_task.google_ai_task`. Omdøb den gerne til "Update Guard", så du kan se, hvad den bruges til.
-6. **Indstillinger → Enheder og tjenester → Update Guard → Konfigurer → AI-kontrol** → vælg enheden → **Send**.
+6. **Opdateringsvagt → ⚙️ → AI-kontrol** i sidemenuen → vælg enheden. Det gemmes med det samme.
 
 Andre AI Task-integrationer (OpenAI, Anthropic, Ollama osv.) virker også.
 

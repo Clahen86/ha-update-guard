@@ -313,7 +313,7 @@ UpdateGuardPanel.prototype._renderSettings = function () {
   const levels = ["safe", "check", "wait"].map((l) => `<button class="${o.notify_level === l ? "on" : ""}" data-level="${l}">${s.levels[l]}</button>`).join("");
   const ai = [`<option value="">${s.noAi}</option>`, ...d.ai_tasks.map((e) => `<option value="${e}" ${o.ai_task === e ? "selected" : ""}>${this._esc(this._name(e))}</option>`)].join("");
   const chosen = o.blockers.map((e) => `<span class="pick on">${this._esc(this._name(e))}<button class="x" data-unblock="${e}" title="✕">✕</button></span>`).join("") || `<span class="muted">${s.noneChosen}</span>`;
-  const sugg = d.suggested_blockers.filter((e) => !o.blockers.includes(e)).map((e) => `<button class="pick" data-block="${e}">＋ ${this._esc(this._name(e))}</button>`).join("");
+  const sugg = d.suggested_blockers.filter((e) => !o.blockers.includes(e)).map((e) => `<button class="pick" data-block="${e}">+ ${this._esc(this._name(e))}</button>`).join("");
   const all = Object.keys(this._hass.states).filter((e) => /^(switch|binary_sensor|sensor|input_boolean|media_player|vacuum)\./.test(e))
     .map((e) => `<option value="${e}">${this._esc(this._name(e))}</option>`).join("");
   this.shadowRoot.innerHTML = `
