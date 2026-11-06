@@ -235,3 +235,28 @@ async def test_dead_projects_and_panel(hass: HomeAssistant, aioclient_mock) -> N
     dead = hass.states.get("sensor.update_guard_assessment").attributes["dead"]
     assert dead and dead[0]["name"] == "Cool card" and "archived" in dead[0]["why"]
     assert "update-guard" in hass.data["frontend_panels"]
+
+
+async def test_settings_from_the_panel(hass: HomeAssistant, aioclient_mock, hass_ws_client) -> None:
+    _mock_github(aioclient_mock)
+    async_mock_service(hass, "notify", "mobile_app_phone")
+    hass.states.async_set("switch.vaskemaskine", "off", {"friendly_name": "Vaskemaskine"})
+    entry = await _setup(hass)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "update_guard/settings"})
+    result = (await client.receive_json())["result"]
+    assert "notify.mobile_app_phone" in result["notify_services"]
+    assert result["suggested_blockers"] == ["switch.vaskemaskine"]
+    assert result["options"]["notify_level"] == "safe"
+
+    await client.send_json_auto_id(
+        {"type": "update_guard/save_settings", "notify": ["notify.mobile_app_phone"], "blockers": ["switch.vaskemaskine"],
+         "wait_for_fix": True}
+    )
+    assert (await client.receive_json())["success"]
+    await hass.async_block_till_done()
+    assert entry.options["notify"] == ["notify.mobile_app_phone"] and entry.options["wait_for_fix"] is True
+    # Saved without a reload: the same coordinator keeps running.
+    assert entry.runtime_data.installer.busy() == []
+    await client.send_json_auto_id({"type": "update_guard/save_settings", "ai_task": None})
+    assert (await client.receive_json())["success"]

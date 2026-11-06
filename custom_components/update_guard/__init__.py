@@ -15,6 +15,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv, issue_registry as ir
 from homeassistant.helpers.typing import ConfigType
 
+from . import websocket
 from .const import DOMAIN
 from .coordinator import UpdateGuardConfigEntry, UpdateGuardCoordinator
 
@@ -34,6 +35,7 @@ SAFE_UPDATE_SCHEMA = vol.Schema(
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    websocket.async_setup(hass)
     folder = Path(__file__).parent / "frontend"
     await hass.http.async_register_static_paths([StaticPathConfig(STATIC, str(folder), cache_headers=False)])
 
@@ -91,7 +93,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: UpdateGuardConfigEntry) 
 
 
 async def _options_changed(hass: HomeAssistant, entry: UpdateGuardConfigEntry) -> None:
-    await hass.config_entries.async_reload(entry.entry_id)
+    # Every setting is read when it's used, so a new check is enough (no reload: the panel stays open).
+    await entry.runtime_data.async_request_refresh()
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: UpdateGuardConfigEntry) -> bool:
