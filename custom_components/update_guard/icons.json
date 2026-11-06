@@ -19,5 +19,10 @@
         "default": "mdi:shield-refresh"
       }
     }
+  },
+  "services": {
+    "safe_update": {
+      "service": "mdi:shield-sync"
+    }
   }
 }
