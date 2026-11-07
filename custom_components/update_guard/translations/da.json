@@ -76,6 +76,14 @@
           "not_loaded": "Update Guard kører ikke."
         }
       }
+    },
+    "update_wait_unproven": {
+      "title": "Tjek før du opdaterer {name} {latest}",
+      "description": "Opdateringen af {name} fra {installed} til {latest} har ændringer, der kan have betydning, men intet i din opsætning ser ud til at bruge dem:\n\n{findings}\n\nLæs udgivelsesnoterne, før du opdaterer."
+    },
+    "update_check_unproven": {
+      "title": "Tjek før du opdaterer {name} {latest}",
+      "description": "Opdateringen af {name} fra {installed} til {latest} har ændringer, der kan have betydning, men intet i din opsætning ser ud til at bruge dem:\n\n{findings}\n\nLæs udgivelsesnoterne, før du opdaterer."
     }
   },
   "options": {

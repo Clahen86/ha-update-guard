@@ -123,9 +123,8 @@ type: custom:button-card
     assert [f.text for f in findings] == [
         "`spin` (to make the icon rotate) has been renamed to `rotate`",
         "The default theme changed",
-        "Options are no longer saved twice",
-    ]
-    assert findings[0].severe and findings[1].severe and not findings[2].severe
+    ]  # "Options are no longer saved twice" under Bug fixes describes a fix, not something to act on
+    assert findings[0].severe and findings[1].severe
 
 
 def test_parse_ai_answer():
@@ -173,3 +172,22 @@ def test_has_content():
     assert not notes.has_content("<ha-alert alert-type='info'>The system will reboot</ha-alert>")
     assert not notes.has_content("[**Read release announcement**](https://esphome.io/changelog/2026.10.0)")
     assert notes.has_content("- Keep TLS 1.3 working for audio streams")
+
+
+def test_weather_radar_card_4_0_0():
+    """Issue: a heading alone, fixes described with "no longer", and bold lead-ins."""
+    from pathlib import Path
+
+    body = (Path(__file__).parent / "fixtures" / "weather-radar-card-4.0.0.md").read_text()
+    findings = notes.scan_changelog(body)
+    texts = [f.text for f in findings]
+    assert len(findings) == 3 and all(f.severe for f in findings)  # the three real breaking changes
+    assert texts[0].startswith("Home Assistant 2025.3 or later.")  # caught, and no ** left
+    assert not any("**" in t for t in texts)
+    assert not any("Safari" in t or "Blank frames" in t or "streamlines" in t for t in texts)  # fixes are not findings
+    assert not any(t.strip("⚠️ ").lower() == "breaking changes" for t in texts)  # no finding for a heading
+
+
+def test_requires_ha_version_outside_a_section():
+    assert notes.scan_changelog("- This release requires Home Assistant 2025.3 or later")
+    assert notes.scan_changelog("## Bug fixes\n- Crash on start no longer happens") == []

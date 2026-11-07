@@ -548,7 +548,10 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 is_fixable=False,
                 is_persistent=False,
                 severity=ir.IssueSeverity.ERROR if update["level"] == LEVEL_WAIT else ir.IssueSeverity.WARNING,
-                translation_key=f"update_{update['level']}",
+                # "Something you use" only when something here is proven to be touched.
+                translation_key=f"update_{update['level']}"
+                + ("" if any(f.get("affects") == "yes" or (f.get("source") == "release" and f.get("domains"))
+                             for f in update["findings"]) else "_unproven"),  # a Core change to an integration you have counts
                 translation_placeholders={
                     "name": update["name"],
                     "installed": update["installed"] or "?",

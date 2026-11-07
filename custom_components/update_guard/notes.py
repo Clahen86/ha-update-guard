@@ -30,7 +30,8 @@ _SEVERE = re.compile(
 # Words that point at something you have to act on in an app/HACS/firmware changelog.
 _KEYWORD = re.compile(
     r"breaking[- ]changes?|\bbreaking:|⚠|💥|backward[- ]incompatible|no longer|deprecat|\bremov(?:e|ed|es|al)\b|"
-    r"manual(?:ly)? (?:action|step|migrat)|migration (?:is )?required|must now|now requires?|requires? you",
+    r"manual(?:ly)? (?:action|step|migrat)|migration (?:is )?required|must now|now requires?|requires? you|"
+    r"requires? (?:home assistant|ha) \d{4}|home assistant \d{4}\.\d+ or (?:later|newer)",
     re.I,
 )
 # "breaking" on its own is often a verb ("avoid breaking on bad data"), so only these count as strong.
@@ -40,9 +41,14 @@ _BREAKING_MARK = re.compile(r"^\w+(?:\([^)]*\))?!:|\bBREAKING\b")
 # Wording that means the user has to do something, even in a line about a fix.
 _ACTION = re.compile(
     r"no longer|must|now requires?|requires? you|manual|breaking[- ]changes?|\bBREAKING\b|"
+    r"requires? (?:home assistant|ha) \d{4}|home assistant \d{4}\.\d+ or (?:later|newer)|"
     r"deprecat\w* (?:\S+ ){0,3}?(?:actions?|services?|options?|sensors?|entit(?:y|ies)|attributes?|yaml|settings?)\b",
     re.I,
 )
+
+# In a bug fix section only these mean you have to act ("no longer" there describes the fix).
+_MINOR_ACTION = re.compile(r"\bmust\b|requires? you|manual(?:ly)? (?:action|step|migrat)|migration (?:is )?required|"
+                           r"now requires?|requires? (?:home assistant|ha) \d{4}", re.I)
 
 # Section headings: "## ⚠ BREAKING CHANGES", "**Bug fixes**", or a short line like "Breaking changes".
 _MD_HEADING = re.compile(r"^\s{0,3}(?:#{1,6}\s+(.*?)[\s#]*|\*\*([^*]+)\*\*:?|__([^_]+)__:?)\s*$")
@@ -232,7 +238,7 @@ def scan_changelog(text: str) -> list[Finding]:
         findings.append(
             Finding(
                 title="",
-                text=shorten(clean(line), 250),
+                text=shorten(_unmark(clean(line)), 250),
                 severe=severe,
                 source="changelog",
                 keywords=keywords(line),
@@ -282,10 +288,18 @@ def _section(line: str) -> str | None:
     return "feature" if _FEATURE_SECTION.search(heading) else ""
 
 
+def _unmark(text: str) -> str:
+    """Bold marks left anywhere in a line ("**Lead-in.** text" -> "Lead-in. text"); code marks stay."""
+    return re.sub(r"\s{2,}", " ", text.replace("**", "")).strip()
+
+
 def _harmless(line: str, section: str) -> bool:
     """A keyword line that is not something to act on, e.g. "Remove unused code" or "Fix deprecation warning"."""
     if _NEGATED.search(line):
         return True
+    if section == "minor" and not (_SEVERE.search(line) or _STRONG_KEYWORD.search(line) or _BREAKING_MARK.search(line)) \
+            and not _MINOR_ACTION.search(line):
+        return True  # a fix: "X no longer happens" describes what was fixed, not something to act on
     if _STRONG_KEYWORD.search(line) or _BREAKING_MARK.search(line):
         return False
     start = re.sub(r"^(?:#\d+|\[[^\]]*\]|\w+(?:\([^)]*\))?:)\s*", "", line)

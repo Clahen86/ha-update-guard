@@ -76,6 +76,14 @@
           "not_loaded": "Update Guard isn't running."
         }
       }
+    },
+    "update_wait_unproven": {
+      "title": "Check before updating {name} {latest}",
+      "description": "Updating {name} from {installed} to {latest} has changes that may matter, but nothing in your setup was found to use them:\n\n{findings}\n\nRead the release notes before you update."
+    },
+    "update_check_unproven": {
+      "title": "Check before updating {name} {latest}",
+      "description": "Updating {name} from {installed} to {latest} has changes that may matter, but nothing in your setup was found to use them:\n\n{findings}\n\nRead the release notes before you update."
     }
   },
   "options": {
