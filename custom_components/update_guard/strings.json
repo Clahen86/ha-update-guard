@@ -66,6 +66,14 @@
       "title": "After updating {names}, {count} stopped working",
       "fix_flow": {
         "step": {
+          "init": {
+            "title": "What happened",
+            "description": "This worked before the update and still didn't work 5 and 30 minutes after it:\n\n{findings}",
+            "menu_options": {
+              "confirm": "Go back to the version before",
+              "dismiss": "Close this message (it was nothing / I fixed it)"
+            }
+          },
           "confirm": {
             "title": "Go back to the version before",
             "description": "This worked before the update and still didn't work 5 and 30 minutes after it:\n\n{findings}\n\nGo back to the version before? This installs {names} again. An app is restored from the backup the Supervisor took before the update."

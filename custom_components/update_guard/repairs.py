@@ -15,12 +15,22 @@ from .const import DOMAIN
 
 
 class RollbackFlow(RepairsFlow):
-    def __init__(self, items: list[dict[str, Any]], findings: str = "") -> None:
+    def __init__(self, issue_id: str, items: list[dict[str, Any]], findings: str = "") -> None:
+        self.issue_id = issue_id
         self.items = items
         self.findings = findings
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        return await self.async_step_confirm()
+        # Going back, or closing the message: a fixable repair has no "ignore" in Home Assistant.
+        return self.async_show_menu(
+            step_id="init", menu_options=["confirm", "dismiss"], description_placeholders={"findings": self.findings}
+        )
+
+    async def async_step_dismiss(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+        """Close the message without going back (finishing the flow removes the repair)."""
+        for entry in self.hass.config_entries.async_loaded_entries(DOMAIN):
+            entry.runtime_data.after.forget(self.issue_id)
+        return self.async_create_entry(data={})
 
     async def async_step_confirm(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         if user_input is not None:
@@ -44,4 +54,4 @@ async def async_create_fix_flow(
     hass: HomeAssistant, issue_id: str, data: dict[str, Any] | None
 ) -> RepairsFlow:
     data = data or {}
-    return RollbackFlow(list(data.get("rollback") or []), str(data.get("findings") or ""))
+    return RollbackFlow(issue_id, list(data.get("rollback") or []), str(data.get("findings") or ""))

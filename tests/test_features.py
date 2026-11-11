@@ -186,10 +186,20 @@ async def test_rollback_flow(hass: HomeAssistant, aioclient_mock) -> None:
     )
     flow.hass = hass
     result = await flow.async_step_init()
+    assert result["type"] == "menu" and result["menu_options"] == ["confirm", "dismiss"]
+    result = await flow.async_step_confirm()
     assert result["type"] == "form" and "v1.9.0" in result["description_placeholders"]["names"]
     result = await flow.async_step_confirm({})
     assert result["type"] == "create_entry"
     assert installs[-1].data == {"entity_id": "update.cool_card_update", "version": "v1.9.0"}
+
+    # Closing the message instead goes back to nothing.
+    installs.clear()
+    flow = await async_create_fix_flow(hass, "after_2", {"rollback": [{"entity_id": "update.cool_card_update",
+                                                                      "version": "v1.9.0", "kind": "hacs"}]})
+    flow.hass = hass
+    result = await flow.async_step_dismiss()
+    assert result["type"] == "create_entry" and not installs
 
 
 async def test_core_wait_for_fix_and_compat(hass: HomeAssistant, aioclient_mock) -> None:

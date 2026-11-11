@@ -66,6 +66,14 @@
       "title": "Efter opdatering af {names} virker {count} ikke",
       "fix_flow": {
         "step": {
+          "init": {
+            "title": "Hvad skete der",
+            "description": "Det her virkede før opdateringen og virkede stadig ikke 5 og 30 minutter efter:\n\n{findings}",
+            "menu_options": {
+              "confirm": "Gå tilbage til versionen før",
+              "dismiss": "Luk meldingen (det var ingenting / jeg har rettet det)"
+            }
+          },
           "confirm": {
             "title": "Gå tilbage til versionen før",
             "description": "Det her virkede før opdateringen og virkede stadig ikke 5 og 30 minutter efter:\n\n{findings}\n\nVil du gå tilbage til versionen før? Så installeres {names} igen. En app gendannes fra den backup, Supervisor tog før opdateringen."

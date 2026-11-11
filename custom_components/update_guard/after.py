@@ -321,6 +321,12 @@ class AfterCheck:
         return f"{entry.title} ({entry.domain})" if entry else entry_id
 
     @callback
+    def forget(self, issue_id: str) -> None:
+        """The user closed the message."""
+        if self.reports.pop(issue_id, None) is not None:
+            self._save()
+
+    @callback
     def _clean_reports(self) -> None:
         """Remove a repair once everything in it works again."""
         for issue_id, report in list(self.reports.items()):
