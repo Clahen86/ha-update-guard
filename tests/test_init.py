@@ -364,9 +364,9 @@ async def test_missing_notes_are_unknown_not_safe(hass: HomeAssistant, aioclient
     await hass.async_block_till_done()
 
     state = hass.states.get("sensor.update_guard_assessment")
-    assert state.state == "unknown"
+    assert state.state == "unclear"
     levels = {u["name"]: (u["level"], u["notes_missing"]) for u in state.attributes["updates"]}
-    assert levels == {"Home Assistant Core": ("unknown", True), "Garage": ("unknown", True)}
+    assert levels == {"Home Assistant Core": ("unclear", True), "Garage": ("unclear", True)}
     # "Only what needs a look" includes unknown.
     assert len(calls) == 1 and "⚪ 2" in calls[0].data["title"]
 
@@ -484,6 +484,8 @@ async def test_after_update(hass: HomeAssistant, aioclient_mock) -> None:
         hass.states.async_set(entity_id, "unavailable")
     await hass.async_block_till_done()
     assert checker.batch and checker.batch["updates"][0]["device"] == device.id
+    # Home Assistant restarted after the update: what else stopped at the same time is told too.
+    checker.started = checker.batch["since"] + 1
 
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=301))
     await hass.async_block_till_done()
@@ -509,6 +511,48 @@ async def test_after_update(hass: HomeAssistant, aioclient_mock) -> None:
     hass.states.async_set("sensor.garage_temp", "21")
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2500))
     await hass.async_block_till_done()
+    assert not [i for (d, i) in ir.async_get(hass).issues if d == DOMAIN and i.startswith("after_")]
+
+
+async def test_after_update_ignores_what_was_off(hass: HomeAssistant, aioclient_mock) -> None:
+    """An integration whose device was already off, and unrelated things without a restart, are not reported."""
+    from datetime import timedelta
+
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    from homeassistant.config_entries import ConfigEntryState
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.update_guard import after
+
+    _mock_github(aioclient_mock)
+    entry = MockConfigEntry(domain=DOMAIN, data={}, options={})
+    entry.add_to_hass(hass)
+    glances = MockConfigEntry(domain="glances", title="PC", state=ConfigEntryState.LOADED)
+    glances.add_to_hass(hass)
+    registry = er.async_get(hass)
+    registry.async_get_or_create("sensor", "glances", "pc_cpu", suggested_object_id="pc_cpu", config_entry=glances)
+    registry.async_get_or_create("sensor", "zha", "bulb", suggested_object_id="bulb")
+    registry.async_get_or_create("update", "hassio", "abc_app_version_latest", suggested_object_id="app")
+    hass.states.async_set("sensor.pc_cpu", "unavailable")  # the PC is switched off
+    hass.states.async_set("sensor.bulb", "on")
+    hass.states.async_set("update.app", "off", {"installed_version": "1.0", "title": "App"})
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    checker = entry.runtime_data.after
+    checker.baseline = after.snapshot(hass)
+    assert glances.entry_id not in checker.baseline["loaded"]
+
+    # The app is updated; the PC's integration fails and the bulb goes off at the wall at the same time.
+    hass.states.async_set("update.app", "off", {"installed_version": "2.0", "title": "App"})
+    hass.states.async_set("sensor.bulb", "unavailable")
+    glances.mock_state(hass, ConfigEntryState.SETUP_RETRY)
+    await hass.async_block_till_done()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=301))
+    await hass.async_block_till_done()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=1801))
+    await hass.async_block_till_done()
+    assert checker.batch is None
     assert not [i for (d, i) in ir.async_get(hass).issues if d == DOMAIN and i.startswith("after_")]
 
 

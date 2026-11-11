@@ -17,7 +17,7 @@
         "state": {
           "wait": "Vent",
           "check": "Tjek først",
-          "unknown": "Ukendt – ingen release notes",
+          "unclear": "Ukendt – ingen release notes",
           "safe": "Sikker",
           "none": "Ingen opdateringer"
         },

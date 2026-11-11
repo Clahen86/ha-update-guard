@@ -2,8 +2,8 @@
 const T = {
   en: {
     title: "Update Guard", check: "Check now", checked: "Checked", none: "No pending updates", allGood: "Everything is up to date",
-    wait: "Wait", check_: "Check first", unknown: "Unknown", safe: "Safe",
-    sum: { wait: "to wait with", check: "to check first", unknown: "unknown", safe: "safe" },
+    wait: "Wait", check_: "Check first", unclear: "Unknown", safe: "Safe",
+    sum: { wait: "to wait with", check: "to check first", unclear: "unknown", safe: "safe" },
     update: "Update safely", tonight: "Tonight", force: "Update anyway", notes: "Release notes",
     why: "Why", news: "New for you", security: "Security fix", versions: "versions in one",
     dead: "Projects that may be dead", deadHint: "Archived or unchanged for years. Look for a replacement.",
@@ -22,8 +22,8 @@ const T = {
   },
   da: {
     title: "Opdateringsvagt", check: "Tjek nu", checked: "Tjekket", none: "Ingen ventende opdateringer", allGood: "Alt er opdateret",
-    wait: "Vent", check_: "Tjek først", unknown: "Ukendt", safe: "Sikker",
-    sum: { wait: "at vente med", check: "at tjekke først", unknown: "ukendte", safe: "sikre" },
+    wait: "Vent", check_: "Tjek først", unclear: "Ukendt", safe: "Sikker",
+    sum: { wait: "at vente med", check: "at tjekke først", unclear: "ukendte", safe: "sikre" },
     update: "Opdater sikkert", tonight: "I nat", force: "Opdater alligevel", notes: "Release notes",
     why: "Hvorfor", news: "Nyt for dig", security: "Sikkerhedsrettelse", versions: "versioner i én",
     dead: "Projekter, der måske er døde", deadHint: "Arkiveret eller uændret i årevis. Kig efter en afløser.",
@@ -41,8 +41,8 @@ const T = {
     },
   },
 };
-const COLOR = { wait: "#e5484d", check: "#f5a524", unknown: "#8b8d98", safe: "#30a46c", none: "#30a46c" };
-const ICON = { wait: "⏸", check: "!", unknown: "?", safe: "✓", none: "✓" };
+const COLOR = { wait: "#e5484d", check: "#f5a524", unclear: "#8b8d98", safe: "#30a46c", none: "#30a46c" };
+const ICON = { wait: "⏸", check: "!", unclear: "?", safe: "✓", none: "✓" };
 const KIND = { core: "🏠", app: "🧩", hacs: "🛍️", other: "📟" };
 
 class UpdateGuardPanel extends HTMLElement {
@@ -173,7 +173,7 @@ class UpdateGuardPanel extends HTMLElement {
         .grid { display:grid; gap:12px; }
         .card { background:var(--card-background-color); border-radius:14px; padding:14px; box-shadow:var(--ha-card-box-shadow, 0 1px 3px rgba(0,0,0,.12));
           border-left:4px solid var(--c, transparent); animation:in .25s ease; }
-        .lvl-wait { --c:${COLOR.wait}; } .lvl-check { --c:${COLOR.check}; } .lvl-unknown { --c:${COLOR.unknown}; } .lvl-safe { --c:${COLOR.safe}; }
+        .lvl-wait { --c:${COLOR.wait}; } .lvl-check { --c:${COLOR.check}; } .lvl-unclear { --c:${COLOR.unclear}; } .lvl-safe { --c:${COLOR.safe}; }
         @keyframes in { from { opacity:0; transform:translateY(4px); } }
         .head { display:flex; align-items:center; gap:12px; cursor:pointer; }
         .badge { width:36px; height:36px; border-radius:50%; background:var(--c); color:#fff; display:grid; place-items:center; font-weight:700; flex:none; }
@@ -223,7 +223,7 @@ class UpdateGuardPanel extends HTMLElement {
     const level = s?.state && COLOR[s.state] ? s.state : "none";
     const counts = {};
     for (const u of updates) counts[u.level] = (counts[u.level] || 0) + 1;
-    const sum = ["wait", "check", "unknown", "safe"].filter((l) => counts[l])
+    const sum = ["wait", "check", "unclear", "safe"].filter((l) => counts[l])
       .map((l) => `<span class="pill" style="--c:${COLOR[l]}"><b>${counts[l]}</b> ${t.sum[l]}</span>`).join("");
     const headline = updates.length ? (level === "safe" ? t.safe : t[level === "check" ? "check_" : level] || "") : t.allGood;
     const checked = a.checked ? new Date(a.checked).toLocaleString(this._hass.language, { dateStyle: "short", timeStyle: "short" }) : "";
@@ -247,7 +247,7 @@ class UpdateGuardPanel extends HTMLElement {
         </div>
         ${updates.length ? `<div class="grid">${updates.map((u) => this._card(u, a.planned || [])).join("")}</div>`
           : `<div class="empty"><div class="big">🎉</div>${t.allGood}</div>`}
-        ${dead ? `<section class="dead card" style="--c:${COLOR.unknown}"><h3>🪦 ${t.dead}</h3><div class="muted">${t.deadHint}</div><ul>${dead}</ul></section>` : ""}
+        ${dead ? `<section class="dead card" style="--c:${COLOR.unclear}"><h3>🪦 ${t.dead}</h3><div class="muted">${t.deadHint}</div><ul>${dead}</ul></section>` : ""}
         <footer class="muted">
           ${a.disk_free != null ? `<span>💾 ${t.disk}: ${Number(a.disk_free).toFixed(1)} GB</span>` : ""}
           ${(a.planned || []).length ? `<span>🌙 ${t.planned}: ${(a.planned || []).length}</span>` : ""}

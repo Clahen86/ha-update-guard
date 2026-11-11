@@ -16,8 +16,8 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import STATE_UNAVAILABLE, __version__ as HA_VERSION
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP, STATE_UNAVAILABLE, __version__ as HA_VERSION
+from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.helpers.start import async_at_started
@@ -105,6 +105,16 @@ class AfterCheck:
         unsubs.append(async_at_started(self.hass, _started))
 
         @callback
+        def _stopping(_event: Event) -> None:
+            # A fresh picture right before a restart (e.g. for a Home Assistant update): what was already off isn't
+            # blamed on what comes after.
+            if self.batch is None and self._quiet():
+                self.baseline = snapshot(self.hass)
+                self._save()
+
+        unsubs.append(self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _stopping))
+
+        @callback
         def _stop() -> None:
             for unsub in unsubs:
                 unsub()
@@ -157,7 +167,7 @@ class AfterCheck:
             return  # Nothing known from before.
         _LOGGER.debug("Update installed: %s %s -> %s", update["name"], update["from"], update["to"])
         if self.batch is None:
-            self.batch = {"updates": [], "before": self.baseline, "first": None}
+            self.batch = {"updates": [], "before": self.baseline, "first": None, "since": time.time()}
         # Several updates close together are checked as one; the clock starts again with the last one.
         self.batch["updates"].append(update)
         self.batch["at"] = time.time()
@@ -167,10 +177,14 @@ class AfterCheck:
     def _tick(self, _now=None) -> None:
         self.async_scan()
         self._clean_reports()
-        installing = any(s.attributes.get("in_progress") for s in self.hass.states.async_all("update"))
-        if self.batch is None and not installing and self.started and time.time() - self.started >= SETTLE:
+        if self.batch is None and self._quiet():
             self.baseline = snapshot(self.hass)
             self._save()
+
+    def _quiet(self) -> bool:
+        """Settled after a start and nothing being installed: a good moment to note what works."""
+        installing = any(s.attributes.get("in_progress") for s in self.hass.states.async_all("update"))
+        return not installing and self.started is not None and time.time() - self.started >= SETTLE
 
     @callback
     def _schedule(self) -> None:
@@ -206,7 +220,7 @@ class AfterCheck:
         language = self.hass.config.language.split("-")[0]
         labels = LABELS.get(language, LABELS["en"])
         text = NOTIFY_TEXT.get(language, NOTIFY_TEXT["en"])
-        related, other = self._split(batch["updates"], broken)
+        related, other = self._split(batch["updates"], broken, batch.get("since"))
         errors = _new_errors(self.hass, batch, None if related["everything"] else related["domains"])
         names = ", ".join(f"{u['name']} {u['to']}" for u in batch["updates"])
         count = len(related["entities"]) + len(related["entries"]) + len(other["entities"]) + len(other["entries"])
@@ -258,9 +272,12 @@ class AfterCheck:
         message = "\n".join(line.replace("**", "") for line in lines[: MAX_NAMES + 2])
         await self.coordinator.notifier.async_send(title, message, options)
 
-    def _split(self, updates: list[dict[str, Any]], broken: dict[str, list[str]]):
+    def _split(self, updates: list[dict[str, Any]], broken: dict[str, list[str]], since: float | None = None):
         """What belongs to the installed updates, and what else broke at the same time."""
         everything = any(u["kind"] == KIND_CORE for u in updates)
+        # Something unrelated that stopped at the same time only counts when Home Assistant restarted in between
+        # (it may not have come back). Without a restart, an app or a card can't turn off a light bulb.
+        restarted = bool(self.started and since and self.started > since)
         domains = {d for u in updates for d in u.get("domains", [])}
         devices = {u["device"] for u in updates if u.get("device")}
         entities = er.async_get(self.hass)
@@ -269,14 +286,16 @@ class AfterCheck:
         for entity_id in broken["entities"]:
             entry = entities.async_get(entity_id)
             mine = everything or (entry is not None and (entry.platform in domains or entry.device_id in devices))
-            (related if mine else other)["entities"].append(entity_id)
+            if mine or restarted:
+                (related if mine else other)["entities"].append(entity_id)
         device_entries = {
             e for d in devices if (dev := dr.async_get(self.hass).async_get(d)) for e in dev.config_entries
         }
         for entry_id in broken["entries"]:
             config_entry = self.hass.config_entries.async_get_entry(entry_id)
             mine = everything or entry_id in device_entries or (config_entry and config_entry.domain in domains)
-            (related if mine else other)["entries"].append(entry_id)
+            if mine or restarted:
+                (related if mine else other)["entries"].append(entry_id)
         return related, other
 
     def _entity_names(self, entity_ids: list[str]) -> list[str]:
@@ -325,12 +344,21 @@ class AfterCheck:
 
 
 def snapshot(hass: HomeAssistant) -> dict[str, Any]:
-    """What works right now: available entities and loaded integrations."""
-    return {
-        "time": time.time(),
-        "ok": sorted(s.entity_id for s in hass.states.async_all() if s.state != STATE_UNAVAILABLE),
-        "loaded": sorted(e.entry_id for e in hass.config_entries.async_entries() if e.state is ConfigEntryState.LOADED),
-    }
+    """What works right now: available entities and loaded integrations.
+
+    An integration only counts as working when at least one of its entities is available (or it has none): one that
+    is loaded but whose device is switched off doesn't work, and won't start after a restart either.
+    """
+    ok = {s.entity_id for s in hass.states.async_all() if s.state != STATE_UNAVAILABLE}
+    registry = er.async_get(hass)
+    loaded = []
+    for entry in hass.config_entries.async_entries():
+        if entry.state is not ConfigEntryState.LOADED:
+            continue
+        mine = [e.entity_id for e in er.async_entries_for_config_entry(registry, entry.entry_id) if not e.disabled]
+        if not mine or any(e in ok for e in mine):
+            loaded.append(entry.entry_id)
+    return {"time": time.time(), "ok": sorted(ok), "loaded": sorted(loaded)}
 
 
 def find_broken(hass: HomeAssistant, before: dict[str, Any]) -> dict[str, list[str]]:

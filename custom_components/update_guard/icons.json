@@ -7,7 +7,7 @@
           "wait": "mdi:shield-alert",
           "check": "mdi:shield-search",
           "none": "mdi:shield-outline",
-          "unknown": "mdi:shield-off-outline"
+          "unclear": "mdi:shield-off-outline"
         }
       },
       "findings": {

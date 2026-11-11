@@ -11,7 +11,7 @@ SCAN_INTERVAL = timedelta(hours=6)
 LEVEL_WAIT = "wait"
 LEVEL_CHECK = "check"
 # No release notes could be read, so nothing is known. Never shown as safe.
-LEVEL_UNKNOWN = "unknown"
+LEVEL_UNKNOWN = "unclear"
 LEVEL_SAFE = "safe"
 LEVEL_NONE = "none"
 LEVELS = [LEVEL_WAIT, LEVEL_CHECK, LEVEL_UNKNOWN, LEVEL_SAFE, LEVEL_NONE]
@@ -95,7 +95,7 @@ NOTIFY_TEXT = {
         "wait": "Wait",
         "check": "Check first",
         "safe": "Safe",
-        "unknown": "Unknown",
+        "unclear": "Unknown",
         "nothing": "Nothing in the release notes touches your setup.",
         "no_notes": "No release notes could be read. Check it yourself before you update.",
         "updates": "{n} updates",
@@ -126,7 +126,7 @@ NOTIFY_TEXT = {
         "wait": "Vent",
         "check": "Tjek først",
         "safe": "Sikker",
-        "unknown": "Ukendt",
+        "unclear": "Ukendt",
         "nothing": "Intet i release notes rører din opsætning.",
         "no_notes": "Der var ingen release notes at læse. Tjek selv, før du opdaterer.",
         "updates": "{n} opdateringer",

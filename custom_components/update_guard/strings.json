@@ -17,7 +17,7 @@
         "state": {
           "wait": "Wait",
           "check": "Check first",
-          "unknown": "Unknown – no release notes",
+          "unclear": "Unknown – no release notes",
           "safe": "Safe",
           "none": "No updates"
         },

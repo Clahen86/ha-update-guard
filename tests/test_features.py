@@ -95,11 +95,11 @@ async def test_news_for_you(hass: HomeAssistant, aioclient_mock) -> None:
 
 
 def test_overall_ignores_firmware_without_notes() -> None:
-    firmware = {"level": "unknown", "kind": "other", "notes_missing": True}
+    firmware = {"level": "unclear", "kind": "other", "notes_missing": True}
     card = {"level": "safe", "kind": "hacs", "notes_missing": False}
     assert _overall([firmware, card]) == "safe"
-    assert _overall([firmware]) == "unknown"
-    assert _overall([{"level": "unknown", "kind": "core", "notes_missing": True}, card]) == "unknown"
+    assert _overall([firmware]) == "unclear"
+    assert _overall([{"level": "unclear", "kind": "core", "notes_missing": True}, card]) == "unclear"
 
 
 async def test_safe_update(hass: HomeAssistant, aioclient_mock) -> None:
