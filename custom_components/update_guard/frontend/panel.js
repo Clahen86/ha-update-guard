@@ -1,4 +1,5 @@
 // Update Guard panel: one card per pending update with the verdict, why, and a safe update button.
+import { defineSupport, supportText } from "./support.js";
 const T = {
   en: {
     title: "Update Guard", check: "Check now", checked: "Checked", none: "No pending updates", allGood: "Everything is up to date",
@@ -59,7 +60,8 @@ class UpdateGuardPanel extends HTMLElement {
     const sensor = this._sensor();
     const key = sensor ? sensor.last_updated + JSON.stringify(sensor.attributes.planned || []) : "";
     // In the settings the page is not drawn again on every state change (it would steal the focus).
-    if (this._view === "settings" && !first) return;
+    if (this._sup) this._sup.hass = hass;
+    if ((this._view === "settings" || this._view === "support") && !first) return;
     if (first || key !== this._key || hass.themes?.darkMode !== this._dark) {
       this._key = key;
       this._dark = hass.themes?.darkMode;
@@ -216,6 +218,7 @@ class UpdateGuardPanel extends HTMLElement {
 
   _render() {
     if (this._view === "settings") return this._renderSettings();
+    if (this._view === "support") return this._renderSupport();
     const t = this.t;
     const s = this._sensor();
     const a = s?.attributes || {};
@@ -233,6 +236,7 @@ class UpdateGuardPanel extends HTMLElement {
       <div class="bar">
         ${this._narrow ? `<button class="menu" data-act="menu" title="${t.menu}">☰</button>` : ""}
         <h1>🛡️ ${t.title}</h1>
+        <button data-act="help">🛟 ${supportText(this._hass, "help")}</button>
         <button data-act="checknow">${t.check}</button>
         <button class="gear" data-act="settings" title="${t.settings}">⚙️</button>
       </div>
@@ -265,11 +269,23 @@ class UpdateGuardPanel extends HTMLElement {
       if (act === "menu") this.dispatchEvent(new Event("hass-toggle-menu", { bubbles: true, composed: true }));
       else if (act === "checknow") this._checkNow();
       else if (act === "settings") this._openSettings();
+      else if (act === "help") { this._view = "support"; this._render(); }
       else if (act === "force") { if (confirm(t.forceAsk)) this._install(id, "now", true); }
       else this._install(id, act);
     }));
   }
 }
+// Help and answers from the developer (support.js) - one element kept, so a half-written message isn't lost.
+UpdateGuardPanel.prototype._renderSupport = function () {
+  const t = this.t;
+  this.shadowRoot.innerHTML = `${this._css()}
+    <div class="bar"><button class="menu" data-act="back" title="${t.back}">←</button><h1>🛟 ${supportText(this._hass, "help")}</h1></div>
+    <main id="support-slot"></main>`;
+  this._sup = this._sup || document.createElement(defineSupport("update_guard"));
+  this._sup.hass = this._hass;
+  this.shadowRoot.getElementById("support-slot").appendChild(this._sup);
+  this.shadowRoot.querySelector('[data-act="back"]').addEventListener("click", () => { this._view = "list"; this._key = null; this._render(); });
+};
 UpdateGuardPanel.prototype._openSettings = async function () {
   try {
     this._settings = await this._hass.callWS({ type: "update_guard/settings" });

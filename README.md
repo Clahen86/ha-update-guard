@@ -160,6 +160,10 @@ content: >
 
 **What's next?** Ideas and wishes are welcome as issues on GitHub.
 
+### Help and answers
+
+Press **🛟 Help** at the top of the panel to write what's wrong and attach up to 3 pictures. It goes privately to the developer with a short diagnosis (no names, addresses or passwords) – only when you press *Send*. When the developer answers – also on an error the app reported – the answer shows under 🛟 Help with a notification in Home Assistant, and you can write back. Errors in the app are sent anonymously so they can be fixed; turn it off under 🛟 Help.
+
 ## Dansk
 
 Hver måned kommer der ændringer i Home Assistant, apps og HACS-integrationer, som kan ødelægge noget. De færreste læser release notes. Update Guard læser dem for dig og holder dem op mod *din* opsætning.
@@ -258,6 +262,10 @@ På dansk hedder enhederne `sensor.update_guard_vurdering`, `sensor.update_guard
 Menuer og beskeder er på dansk. Selve teksten fra udviklerne er på engelsk.
 
 **Kræver den AI?** Nej. AI-kontrollen er valgfri. Uden den sender den ikke noget om din opsætning ud af huset. Med den sendes kun de fundne linjer og de navne, de nævner, til den AI-tjeneste, du har valgt.
+
+### Hjælp og svar
+
+Tryk på **🛟 Hjælp** øverst i panelet for at skrive, hvad der er galt, og vedhæfte op til 3 billeder. Det går privat til udvikleren med en kort diagnose (ingen navne, adresser eller koder) – kun når du trykker *Send*. Når udvikleren svarer – også på en fejl, appen har sendt – står svaret under 🛟 Hjælp, og du får en besked i Home Assistant. Du kan skrive tilbage derfra. Fejl i appen sendes anonymt, så de kan blive rettet; slå det fra under 🛟 Hjælp.
 
 ## License
 

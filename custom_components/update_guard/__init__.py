@@ -78,6 +78,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: UpdateGuardConfigEntry) 
     entry.async_on_unload(coordinator.after.async_start())
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_options_changed))
+    from .support import Support
+
+    support = Support(hass, DOMAIN, "update-guard", _TITLES.get(hass.config.language.split("-")[0], "Update Guard"),
+                      summary=lambda: {"pending": len((coordinator.data or {}).get("updates") or []) if isinstance(coordinator.data, dict) else None})
+    await support.async_setup()
+    entry.async_on_unload(support.unload)
     # Version from the file's time, so the browser loads a new panel after an update.
     stamp = int((Path(__file__).parent / "frontend" / "panel.js").stat().st_mtime)
     await panel_custom.async_register_panel(
