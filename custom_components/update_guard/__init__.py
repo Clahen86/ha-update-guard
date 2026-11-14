@@ -36,8 +36,11 @@ SAFE_UPDATE_SCHEMA = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     websocket.async_setup(hass)
+    # Files under a new address for every change (newest file time), so a browser never mixes old and new files.
     folder = Path(__file__).parent / "frontend"
-    await hass.http.async_register_static_paths([StaticPathConfig(STATIC, str(folder), cache_headers=False)])
+    stamp = await hass.async_add_executor_job(lambda: int(max(p.stat().st_mtime for p in folder.glob("*.js"))))
+    hass.data[f"{DOMAIN}_static"] = base = f"{STATIC}/{stamp}"
+    await hass.http.async_register_static_paths([StaticPathConfig(base, str(folder), cache_headers=False)])
 
     async def safe_update(call: ServiceCall) -> ServiceResponse:
         entries = hass.config_entries.async_loaded_entries(DOMAIN)
@@ -92,7 +95,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: UpdateGuardConfigEntry) 
         webcomponent_name="update-guard-panel",
         sidebar_title=_TITLES.get(hass.config.language.split("-")[0], "Update Guard"),
         sidebar_icon="mdi:shield-sync-outline",
-        module_url=f"{STATIC}/panel.js?v={stamp}",
+        module_url=f"{hass.data[f'{DOMAIN}_static']}/panel.js?v={stamp}",
         require_admin=True,
     )
     return True
