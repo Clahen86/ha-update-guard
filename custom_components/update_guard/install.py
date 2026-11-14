@@ -73,6 +73,7 @@ class Installer:
         """Install one update the safe way. Returns what was done: installed or planned."""
         update = self._update(entity_id)
         if update["level"] == LEVEL_WAIT and not force:
+            self.coordinator.after.count("refused", "is_wait")
             raise UpdateRefused("is_wait", name=update["name"], verdict=update.get("verdict", ""))
         if when == "tonight":
             self._plan(entity_id, _tonight(), force)
@@ -132,6 +133,7 @@ class Installer:
     async def _install(self, update: dict[str, Any]) -> None:
         free = disk_free(self.hass)
         if free is not None and free < MIN_FREE_GB:
+            self.coordinator.after.count("refused", "disk")
             raise UpdateRefused("disk", free=f"{free:.1f}")
         entity_id = update["entity_id"]
         if entity_id is None:
@@ -140,6 +142,9 @@ class Installer:
         if self.backup_needed(update) and _supports(self.hass, entity_id, UpdateEntityFeature.BACKUP):
             data["backup"] = True
         _LOGGER.info("Installing %s %s (backup: %s)", update["name"], update["latest"], data.get("backup", False))
+        self.coordinator.after.count("installed", update["kind"])
+        if data.get("backup"):
+            self.coordinator.after.count("backups")
         # The check after the update starts by itself when the new version shows up.
         await self.hass.services.async_call("update", "install", data, blocking=False)
 
@@ -156,11 +161,13 @@ class Installer:
             await self.hass.services.async_call(
                 "update", "install", {"entity_id": entity_id, "version": version}, blocking=True
             )
+            self.coordinator.after.count("rolled_back", kind)
             return
         if kind == KIND_APP and slug and (backup := await app_backup(self.hass, slug, version)):
             await self.hass.services.async_call(
                 "hassio", "restore_partial", {"slug": backup, "addons": [slug]}, blocking=True
             )
+            self.coordinator.after.count("rolled_back", kind)
             return
         raise UpdateRefused("no_rollback")
 

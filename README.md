@@ -162,7 +162,7 @@ content: >
 
 ### Help and answers
 
-Press **🛟 Help** at the top of the panel to write what's wrong and attach up to 3 pictures. It goes privately to the developer with a short diagnosis (no names, addresses or passwords) – only when you press *Send*. When the developer answers – also on an error the app reported – the answer shows under 🛟 Help with a notification in Home Assistant, and you can write back. Errors in the app are sent anonymously so they can be fixed; turn it off under 🛟 Help.
+Press **🛟 Help** at the top of the panel to write what's wrong and attach up to 3 pictures. It goes privately to the developer with a short diagnosis (no names, addresses or passwords) – only when you press *Send*. When the developer answers – also on an error the app reported – the answer shows under 🛟 Help with a notification in Home Assistant, and you can write back. Errors in the app are sent anonymously so they can be fixed; turn it off under 🛟 Help. With it, once a day, how it is set up goes along – which kinds of updates it watches (by integration) and how many were installed, refused or rolled back – with no names or entity IDs; the full entity names only if you turn on *Share my setup* under 🛟 Help.
 
 ## Dansk
 
@@ -265,7 +265,7 @@ Menuer og beskeder er på dansk. Selve teksten fra udviklerne er på engelsk.
 
 ### Hjælp og svar
 
-Tryk på **🛟 Hjælp** øverst i panelet for at skrive, hvad der er galt, og vedhæfte op til 3 billeder. Det går privat til udvikleren med en kort diagnose (ingen navne, adresser eller koder) – kun når du trykker *Send*. Når udvikleren svarer – også på en fejl, appen har sendt – står svaret under 🛟 Hjælp, og du får en besked i Home Assistant. Du kan skrive tilbage derfra. Fejl i appen sendes anonymt, så de kan blive rettet; slå det fra under 🛟 Hjælp.
+Tryk på **🛟 Hjælp** øverst i panelet for at skrive, hvad der er galt, og vedhæfte op til 3 billeder. Det går privat til udvikleren med en kort diagnose (ingen navne, adresser eller koder) – kun når du trykker *Send*. Når udvikleren svarer – også på en fejl, appen har sendt – står svaret under 🛟 Hjælp, og du får en besked i Home Assistant. Du kan skrive tilbage derfra. Fejl i appen sendes anonymt, så de kan blive rettet; slå det fra under 🛟 Hjælp. Med det sendes én gang om dagen også, hvordan den er sat op – hvilke slags opdateringer den holder øje med (pr. integration), og hvor mange der blev installeret, afvist eller rullet tilbage – uden navne eller entity-id'er; de fulde entity-navne kun hvis du slår *Del min opsætning* til under 🛟 Hjælp.
 
 ## License
 

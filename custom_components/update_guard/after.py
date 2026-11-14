@@ -75,6 +75,8 @@ class AfterCheck:
         self.reports: dict[str, dict[str, Any]] = {}
         self.started: float | None = None
         self._timer: CALLBACK_TYPE | None = None
+        # Counts for the developer's overview (setup.py): installed per kind, refused, rolled back, backups, broken.
+        self.stats: dict[str, Any] = {}
 
     async def async_load(self) -> None:
         data = await self.store.async_load() or {}
@@ -82,6 +84,7 @@ class AfterCheck:
         self.versions = data.get("versions", {})
         self.batch = data.get("batch")
         self.reports = data.get("reports", {})
+        self.stats = data.get("stats", {})
         core = data.get("core")
         if core and core != HA_VERSION and self.baseline:
             self._add({"kind": KIND_CORE, "entity_id": None, "name": "Home Assistant", "from": core, "to": HA_VERSION})
@@ -261,6 +264,7 @@ class AfterCheck:
             translation_key="after_broken_fix" if rollback else "after_broken",
             translation_placeholders={"names": names, "count": str(count or len(errors)), "findings": "\n".join(lines)},
         )
+        self.count("broken")
         self.reports[issue_id] = {
             "entities": related["entities"] + other["entities"],
             "entries": related["entries"] + other["entries"],
@@ -336,6 +340,15 @@ class AfterCheck:
                 del self.reports[issue_id]
                 self._save()
 
+    @callback
+    def count(self, key: str, sub: str | None = None) -> None:
+        if sub is None:
+            self.stats[key] = int(self.stats.get(key) or 0) + 1
+        else:
+            d = self.stats.setdefault(key, {})
+            d[sub] = int(d.get(sub) or 0) + 1
+        self._save()
+
     def _save(self) -> None:
         self.store.async_delay_save(
             lambda: {
@@ -344,6 +357,7 @@ class AfterCheck:
                 "core": HA_VERSION,
                 "batch": self.batch,
                 "reports": self.reports,
+                "stats": self.stats,
             },
             5,
         )

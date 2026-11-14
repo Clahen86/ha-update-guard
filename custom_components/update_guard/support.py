@@ -15,7 +15,13 @@
   A notification in Home Assistant (never on the phone) only when an error it had is fixed, or when it is 30 days behind
   a release that says "Important:".
 
-Never sent: names of devices, entities, areas or people, addresses, keys or passwords.
+- How it is set up (with the errors, on unless turned off): once a day the devices the app works with - the
+  integration, what each entity is used for, its values - so the developer can fix the brand profiles. Entity names
+  are sent with the user's own device name taken out ("select.<device>_export_limiter"), and a name that can't be
+  cleaned is left out. Only when the user turns on "Share my setup" are the full entity names sent.
+
+Never sent (unless "Share my setup" is on): names of devices, entities, areas or people. Never: addresses, keys or
+passwords, messages or history.
 """
 
 from __future__ import annotations
@@ -37,6 +43,7 @@ import voluptuous as vol
 
 from homeassistant.components import persistent_notification, websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
@@ -81,8 +88,8 @@ NEW_MESSAGE = {
 
 class Support:
     def __init__(self, hass: HomeAssistant, domain: str, app: str, name: str,
-                 summary: Callable[[], dict[str, Any]] | None = None) -> None:
-        self.hass, self.domain, self.app, self.name, self.summary = hass, domain, app, name, summary
+                 summary: Callable[[], dict[str, Any]] | None = None, setup: Callable[[], dict[str, Any]] | None = None) -> None:
+        self.hass, self.domain, self.app, self.name, self.summary, self.setup = hass, domain, app, name, summary, setup
         self.store = Store(hass, 1, f"{domain}.support")
         self.d: dict[str, Any] = {}
         self._errors_sent: dict[str, str] = {}
@@ -121,6 +128,49 @@ class Support:
     @property
     def share(self) -> bool:
         return self.d.get("share", True) is not False
+
+    @property
+    def full(self) -> bool:
+        """"Share my setup": the full entity names too (off unless the user turns it on)."""
+        return bool(self.d.get("full")) and self.share
+
+    # ---------- how it is set up ----------
+    def entity(self, entity_id: str, use: str = "") -> dict[str, Any]:
+        """One entity for the setup: its name (cleaned unless "Share my setup"), the integration, what it is used for and
+        its values - never its state history or attributes with text."""
+        reg = er.async_get(self.hass).async_get(entity_id)
+        st = self.hass.states.get(entity_id)
+        a = dict(st.attributes) if st else {}
+        out: dict[str, Any] = {"name": entity_id if self.full else mask(self.hass, entity_id), "use": use,
+                               "platform": reg.platform if reg else None}
+        for k in ("unit_of_measurement", "device_class", "min", "max", "step", "min_temp", "max_temp", "target_temp_step"):
+            if isinstance(a.get(k), (str, int, float)) and len(str(a[k])) < 30:
+                out[k] = a[k]
+        for k in ("options", "hvac_modes", "preset_modes", "fan_modes", "operation_list"):
+            if isinstance(a.get(k), list):
+                out[k] = [str(x)[:40] for x in a[k][:25]]
+        if reg and reg.translation_key:
+            out["key"] = reg.translation_key
+        dom = entity_id.split(".")[0]
+        if st and (dom in ("select", "switch", "binary_sensor", "input_boolean", "climate", "water_heater") or out.get("options")):
+            out["state"] = str(st.state)[:40]
+        return out
+
+    def device(self, device_id: str | None) -> dict[str, Any]:
+        """The maker and model of a device (never its name)."""
+        d = dr.async_get(self.hass).async_get(device_id) if device_id else None
+        return {"manufacturer": (d.manufacturer or "")[:60], "model": (d.model or "")[:60]} if d else {}
+
+    def setup_info(self) -> dict[str, Any] | None:
+        if not self.setup or not self.share:
+            return None
+        try:
+            info = self.setup() or {}
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug("Setup for the developer failed", exc_info=True)
+            return {"failed": True}
+        info["full"] = self.full
+        return info
 
     async def _save(self) -> None:
         await self.store.async_save(self.d)
@@ -206,7 +256,10 @@ class Support:
             await self.fetch_answers()
 
     async def fetch_answers(self) -> None:
-        d = await self._post("/replies", {"install": self.d.get("install"), "version": self.version()})
+        body: dict[str, Any] = {"install": self.d.get("install"), "version": self.version()}
+        if (su := self.setup_info()) is not None:
+            body["setup"] = su
+        d = await self._post("/replies", body)
         if not d or "reports" not in d:
             return
         self.d["replies"] = {"reports": d["reports"][:5], "notes": (d.get("notes") or [])[:5], "t": time.time()}
@@ -314,7 +367,7 @@ class Support:
     async def status(self) -> dict[str, Any]:
         if self.answer_every() and time.time() - float((self.d.get("replies") or {}).get("t") or 0) > 300:
             await self.fetch_answers()
-        out = {"share": self.share, "last_help": self.d.get("last_help"), "answers": self.visible(mark_seen=True), "update": self.update()}
+        out = {"share": self.share, "full": self.full, "has_setup": bool(self.setup), "last_help": self.d.get("last_help"), "answers": self.visible(mark_seen=True), "update": self.update()}
         await self._save()
         return out
 
@@ -336,6 +389,10 @@ class Support:
         self.d["share"] = bool(on)
         await self._save()
 
+    async def set_full(self, on: bool) -> None:
+        self.d["full"] = bool(on)
+        await self._save()
+
 
 class _ErrorHandler(logging.Handler):
     def __init__(self, support: Support) -> None:
@@ -352,7 +409,7 @@ class _ErrorHandler(logging.Handler):
 def _ws_for(domain: str) -> Callable:
     @websocket_api.websocket_command({
         vol.Required("type"): f"{domain}/support",
-        vol.Required("action"): vol.In(["status", "send", "reply", "hide", "share", "snooze"]),
+        vol.Required("action"): vol.In(["status", "send", "reply", "hide", "share", "full", "snooze"]),
         vol.Optional("note"): vol.All(str, vol.Length(max=4000)),
         vol.Optional("images"): vol.All(list, vol.Length(max=3)),
         vol.Optional("report"): str,  # not "id": that is the websocket message's own number
@@ -376,11 +433,32 @@ def _ws_for(domain: str) -> Callable:
             await s.hide(msg.get("key", ""))
         elif a == "share":
             await s.set_share(msg.get("on", True))
+        elif a == "full":
+            await s.set_full(msg.get("on", False))
         elif a == "snooze":
             await s.snooze()
         connection.send_result(msg["id"], {**res, **(await s.status())})
 
     return ws_support
+
+
+def _slug(text: str) -> str:
+    return re.sub(r"_+", "_", re.sub(r"[^a-z0-9]+", "_", str(text).lower())).strip("_")
+
+
+def mask(hass: HomeAssistant, entity_id: str) -> str:
+    """The entity's name without the user's own names: the device's name becomes <device>; when the rest can't be
+    trusted to be the integration's own words, only the integration's key is kept, or nothing."""
+    dom, obj = entity_id.split(".", 1)
+    reg = er.async_get(hass).async_get(entity_id)
+    dev = dr.async_get(hass).async_get(reg.device_id) if reg and reg.device_id else None
+    for n in [x for x in ((dev.name_by_user, dev.name) if dev else ()) if x]:
+        s = _slug(n)
+        if s and (obj == s or obj.startswith(s + "_")):
+            return f"{dom}.<device>{obj[len(s):]}"
+    if reg and (reg.translation_key or (reg.has_entity_name and reg.original_name)):
+        return f"{dom}.<device>_{_slug(reg.translation_key or reg.original_name)}"
+    return f"{dom}.<name>"
 
 
 @callback
