@@ -1,5 +1,5 @@
 // Update Guard panel: one card per pending update with the verdict, why, and a safe update button.
-import { defineSupport, supportText } from "./support.js";
+import { defineSupport, defineUpdate, supportText } from "./support.js";
 import { defineSuggest } from "./suggest.js";
 const T = {
   en: {
@@ -259,6 +259,10 @@ class UpdateGuardPanel extends HTMLElement {
         </footer>
       </main>
       <div class="toast"></div>`;
+    // the update card on top of the list, when it's time
+    this._upd = this._upd || document.createElement(defineUpdate("update_guard"));
+    this._upd.hass = this._hass;
+    this.shadowRoot.querySelector("main")?.prepend(this._upd);
     this.shadowRoot.querySelectorAll("[data-toggle]").forEach((el) => el.addEventListener("click", () => {
       const id = el.dataset.toggle;
       this._open.has(id) ? this._open.delete(id) : this._open.add(id);

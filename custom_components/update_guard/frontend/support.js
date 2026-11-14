@@ -127,3 +127,52 @@ export function defineSupport(domain) {
   });
   return name;
 }
+
+// The update card - the same file in each app. defineUpdate("replace_device") defines <ha-update-replace-device>:
+// give it .hass (or .api and .lang outside Home Assistant) and put it at the top of the panel. It shows nothing until
+// support.py says it is time: small fixes once 7 days behind, new features after 2 days, at once when an error this
+// installation had is fixed. "Later" hides it for 7 days. .storeUrl (optional) is where "Update" goes for an add-on.
+const U = {
+  da: { title: "Ny version {v}", fixed: "Fejlen, du havde, er rettet:", go: "Opdater", later: "Senere", important: "Vigtig rettelse", now: "Du har {v}" },
+  en: { title: "New version {v}", fixed: "The error you had is fixed:", go: "Update", later: "Later", important: "Important fix", now: "You have {v}" },
+  de: { title: "Neue Version {v}", fixed: "Dein Fehler ist behoben:", go: "Aktualisieren", later: "Später", important: "Wichtige Korrektur", now: "Du hast {v}" },
+  fr: { title: "Nouvelle version {v}", fixed: "Votre erreur est corrigée :", go: "Mettre à jour", later: "Plus tard", important: "Correction importante", now: "Vous avez {v}" },
+  nl: { title: "Nieuwe versie {v}", fixed: "Je fout is opgelost:", go: "Bijwerken", later: "Later", important: "Belangrijke oplossing", now: "Je hebt {v}" },
+  sv: { title: "Ny version {v}", fixed: "Felet du hade är rättat:", go: "Uppdatera", later: "Senare", important: "Viktig rättning", now: "Du har {v}" },
+  nb: { title: "Ny versjon {v}", fixed: "Feilen du hadde er rettet:", go: "Oppdater", later: "Senere", important: "Viktig retting", now: "Du har {v}" },
+};
+export function defineUpdate(domain) {
+  const name = `ha-update-${domain.replaceAll("_", "-")}`;
+  if (customElements.get(name)) return name;
+  customElements.define(name, class extends HTMLElement {
+    constructor() { super(); this.attachShadow({ mode: "open" }); this.shadowRoot.addEventListener("click", (e) => this.click(e)); }
+    set hass(h) { const first = !this._hass; this._hass = h; if (first) this.load(); }
+    connectedCallback() { if (this.api && !this._loaded) this.load(); }
+    get t() { const l = (this.lang || this._hass?.language || "en").split("-")[0]; return U[l] || U.en; }
+    async call(action) {
+      try { return this.api ? await this.api(action, {}) : await this._hass.callWS({ type: `${domain}/support`, action }); } catch (e) { return null; }
+    }
+    async load() { this._loaded = true; const s = await this.call("status"); this.u = s?.update; this.render(); }
+    async click(e) {
+      const b = e.target.closest("[data-a]"); if (!b) return;
+      if (b.dataset.a === "later") { const s = await this.call("snooze"); this.u = s?.update; this.render(); }
+    }
+    render() {
+      const u = this.u, t = this.t;
+      if (!u || !u.due) { this.shadowRoot.innerHTML = ""; return; }
+      const href = this.storeUrl || (u.repo ? `https://my.home-assistant.io/redirect/hacs_repository/?owner=${encodeURIComponent(u.repo.split("/")[0])}&repository=${encodeURIComponent(u.repo.split("/")[1])}&category=integration` : "");
+      this.shadowRoot.innerHTML = `<style>
+        :host{display:block}.c{display:flex;gap:12px;align-items:flex-start;margin:0 0 14px;padding:12px 14px;border-radius:16px;
+          background:var(--ha-card-background,var(--card-background-color,var(--surface,#fff)));border:1px solid var(--divider-color,var(--line2,rgba(0,0,0,.1)));color:var(--primary-text-color,var(--text,#222))}
+        .i{font-size:22px;line-height:1}.x{flex:1;min-width:0}b{font-size:15px}.n{font-size:13px;margin-top:2px;color:var(--secondary-text-color,var(--muted,#666))}
+        .f{font-size:13px;margin-top:4px;color:var(--success-color,#2e7d32)}.imp{display:inline-block;font-size:11px;font-weight:700;color:#fff;background:#e5484d;border-radius:99px;padding:2px 8px;margin-left:6px;vertical-align:2px}
+        .bt{display:flex;flex-direction:column;gap:6px;align-items:stretch}a{text-decoration:none;text-align:center;font:inherit;font-size:13px;font-weight:700;color:#fff;background:var(--primary-color,var(--accent,#03a9f4));border-radius:99px;padding:7px 14px}
+        button{font:inherit;font-size:12px;border:0;background:none;color:var(--secondary-text-color,var(--muted,#666));cursor:pointer}
+      </style><div class="c"><div class="i">${u.fixed?.length ? "✅" : "⬆️"}</div><div class="x"><b>${esc(t.title.replace("{v}", u.version))}</b>${u.important ? `<span class="imp">${t.important}</span>` : ""}
+        ${u.fixed?.length ? `<div class="f">${t.fixed} ${u.fixed.map((f) => esc(f.error)).join(" · ")}</div>` : ""}
+        ${u.note ? `<div class="n">${esc(u.note)}</div>` : ""}<div class="n">${esc(t.now.replace("{v}", u.current))}</div></div>
+        <div class="bt">${href ? `<a href="${href}" target="_blank" rel="noopener">${t.go}</a>` : ""}${u.fixed?.length ? "" : `<button data-a="later">${t.later}</button>`}</div></div>`;
+    }
+  });
+  return name;
+}

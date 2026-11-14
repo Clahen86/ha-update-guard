@@ -9,6 +9,12 @@
 - Errors in the app (on unless turned off): the kind of error and where in the code - never the message, which may hold
   names - once a day per error.
 
+- Updates: the daily question also carries the app's version, and the answer the newest release. A card in the panel
+  tells about it - small fixes once the installation is 7 days behind, new features after 2 days, at once when an
+  error this installation had is fixed ("Fixed in x.y.z" in the developer's comment). "Later" hides it for 7 days.
+  A notification in Home Assistant (never on the phone) only when an error it had is fixed, or when it is 30 days behind
+  a release that says "Important:".
+
 Never sent: names of devices, entities, areas or people, addresses, keys or passwords.
 """
 
@@ -21,6 +27,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import re
 import time
 import traceback
 from typing import Any
@@ -42,6 +49,25 @@ FRESH = 7 * DAY  # asked every 10 minutes the first week after a report or an er
 CLOSED_KEEP = 7 * DAY
 SEEN_KEEP = 14 * DAY
 SECRET = ("key", "token", "password", "secret", "api", "pin", "code")
+PATCH_WAIT, MINOR_WAIT, IMPORTANT_WAIT, SNOOZE = 7 * DAY, 2 * DAY, 30 * DAY, 7 * DAY
+FIXED_MSG = {
+    "da": "✅ Fejlen, du havde i {name}, er rettet i version {v}. Opdater i HACS.",
+    "en": "✅ The error you had in {name} is fixed in version {v}. Update in HACS.",
+    "de": "✅ Der Fehler, den du in {name} hattest, ist in Version {v} behoben. Aktualisiere in HACS.",
+    "fr": "✅ L'erreur que vous aviez dans {name} est corrigée dans la version {v}. Mettez à jour dans HACS.",
+    "nl": "✅ De fout die je had in {name} is opgelost in versie {v}. Werk bij in HACS.",
+    "sv": "✅ Felet du hade i {name} är rättat i version {v}. Uppdatera i HACS.",
+    "nb": "✅ Feilen du hadde i {name} er rettet i versjon {v}. Oppdater i HACS.",
+}
+IMPORTANT_MSG = {
+    "da": "⬆️ {name} {v} har en vigtig rettelse. Opdater i HACS.",
+    "en": "⬆️ {name} {v} has an important fix. Update in HACS.",
+    "de": "⬆️ {name} {v} enthält eine wichtige Korrektur. Aktualisiere in HACS.",
+    "fr": "⬆️ {name} {v} contient une correction importante. Mettez à jour dans HACS.",
+    "nl": "⬆️ {name} {v} bevat een belangrijke oplossing. Werk bij in HACS.",
+    "sv": "⬆️ {name} {v} har en viktig rättning. Uppdatera i HACS.",
+    "nb": "⬆️ {name} {v} har en viktig retting. Oppdater i HACS.",
+}
 NEW_MESSAGE = {
     "da": "💬 Ny besked fra udvikleren. Åbn {name} → 🛟 Hjælp for at læse den.",
     "en": "💬 New message from the developer. Open {name} → 🛟 Help to read it.",
@@ -180,10 +206,13 @@ class Support:
             await self.fetch_answers()
 
     async def fetch_answers(self) -> None:
-        d = await self._post("/replies", {"install": self.d.get("install")})
+        d = await self._post("/replies", {"install": self.d.get("install"), "version": self.version()})
         if not d or "reports" not in d:
             return
         self.d["replies"] = {"reports": d["reports"][:5], "notes": (d.get("notes") or [])[:5], "t": time.time()}
+        if isinstance(d.get("latest"), dict) and d["latest"].get("version"):
+            self.d["latest"] = d["latest"]
+        self._update_notices()
         newest = max((self._newest(r) for r in self.d["replies"]["reports"] + self.d["replies"]["notes"]), default="")
         seen = self.d.get("seen") if isinstance(self.d.get("seen"), str) else ""
         self.d["seen"] = max(newest, seen)
@@ -224,10 +253,68 @@ class Support:
                 out[kind].append({**r, "key": k})
         return out
 
+    # ---------- updates ----------
+    @staticmethod
+    def _ver(v: Any) -> tuple[int, ...]:
+        return tuple(int(x) for x in re.findall(r"\d+", str(v or ""))[:3]) or (0,)
+
+    def _fixed(self) -> list[dict[str, str]]:
+        """Errors this installation had that the developer fixed in a newer version than it runs ("Fixed in x.y.z")."""
+        cur, out = self._ver(self.version()), []
+        for n in (self.d.get("replies") or {}).get("notes") or []:
+            for m in n.get("msgs") or []:
+                hit = re.search(r"fixed in v?(\d+\.\d+(?:\.\d+)?)", str(m.get("text") or ""), re.I)
+                if hit and self._ver(hit.group(1)) > cur:
+                    out.append({"error": str(n.get("error") or "")[:120], "version": hit.group(1), "key": str(n.get("hash") or n.get("error"))[:60]})
+                    break
+        return out
+
+    def update(self) -> dict[str, Any] | None:
+        """The update card: is there a newer version, and is it time to tell?"""
+        lt, cur = self.d.get("latest") or {}, self.version()
+        lv, fixed = str(lt.get("version") or ""), self._fixed()
+        if not lv or self._ver(lv) <= self._ver(cur):
+            return None
+        now, since = time.time(), self.d.setdefault("behind", {})
+        if lv not in since:
+            try:
+                since[lv] = datetime.datetime.fromisoformat(str(lt.get("date"))).timestamp() if lt.get("date") else now
+            except ValueError:
+                since[lv] = now
+        big = self._ver(lv)[:2] > self._ver(cur)[:2]  # a new feature version, not only fixes
+        age = now - float(since[lv])
+        snooze = self.d.get("snooze") or {}
+        snoozed = now < float(snooze.get("until") or 0) and not (big and self._ver(lv)[:2] > self._ver(snooze.get("version"))[:2])
+        due = bool(fixed) or (age >= (MINOR_WAIT if big else PATCH_WAIT) and not snoozed)
+        return {"version": lv, "current": cur, "note": str(lt.get("note") or ""), "important": bool(lt.get("important")),
+                "repo": str(lt.get("repo") or ""), "big": big, "fixed": fixed, "due": due}
+
+    def _update_notices(self) -> None:
+        """A notification in Home Assistant (never on the phone): an error it had is fixed, or 30 days behind something important."""
+        u = self.update()
+        if not u:
+            return
+        lang = (self.hass.config.language or "en").split("-")[0]
+        told = self.d.setdefault("told", {})
+        for f in u["fixed"]:
+            if told.get("fixed:" + f["key"]) != f["version"]:
+                told["fixed:" + f["key"]] = f["version"]
+                persistent_notification.async_create(self.hass, FIXED_MSG.get(lang, FIXED_MSG["en"]).format(name=self.name, v=f["version"]),
+                                                     title=self.name, notification_id=f"{self.domain}_fixed")
+        if u["important"] and time.time() - float((self.d.get("behind") or {}).get(u["version"]) or time.time()) >= IMPORTANT_WAIT and told.get("important") != u["version"]:
+            told["important"] = u["version"]
+            persistent_notification.async_create(self.hass, IMPORTANT_MSG.get(lang, IMPORTANT_MSG["en"]).format(name=self.name, v=u["version"]),
+                                                 title=self.name, notification_id=f"{self.domain}_update")
+
+    async def snooze(self) -> None:
+        u = self.update()
+        self.d["snooze"] = {"until": time.time() + SNOOZE, "version": (u or {}).get("version") or self.version()}
+        await self._save()
+
     async def status(self) -> dict[str, Any]:
         if self.answer_every() and time.time() - float((self.d.get("replies") or {}).get("t") or 0) > 300:
             await self.fetch_answers()
-        out = {"share": self.share, "last_help": self.d.get("last_help"), "answers": self.visible(mark_seen=True)}
+        out = {"share": self.share, "last_help": self.d.get("last_help"), "answers": self.visible(mark_seen=True), "update": self.update()}
         await self._save()
         return out
 
@@ -265,7 +352,7 @@ class _ErrorHandler(logging.Handler):
 def _ws_for(domain: str) -> Callable:
     @websocket_api.websocket_command({
         vol.Required("type"): f"{domain}/support",
-        vol.Required("action"): vol.In(["status", "send", "reply", "hide", "share"]),
+        vol.Required("action"): vol.In(["status", "send", "reply", "hide", "share", "snooze"]),
         vol.Optional("note"): vol.All(str, vol.Length(max=4000)),
         vol.Optional("images"): vol.All(list, vol.Length(max=3)),
         vol.Optional("report"): str,  # not "id": that is the websocket message's own number
@@ -289,6 +376,8 @@ def _ws_for(domain: str) -> Callable:
             await s.hide(msg.get("key", ""))
         elif a == "share":
             await s.set_share(msg.get("on", True))
+        elif a == "snooze":
+            await s.snooze()
         connection.send_result(msg["id"], {**res, **(await s.status())})
 
     return ws_support
