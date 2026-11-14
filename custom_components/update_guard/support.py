@@ -113,6 +113,8 @@ class Support:
         if not record.exc_info or not record.exc_info[1]:
             return
         exc = record.exc_info[1]
+        if _network(exc):
+            return
         frames = [f for f in traceback.extract_tb(record.exc_info[2]) if self.domain in f.filename]
         where = f"{os.path.basename(frames[-1].filename)}:{frames[-1].lineno} {frames[-1].name}" if frames else "?"
         text = f"{type(exc).__name__} at {where}"
@@ -295,3 +297,18 @@ def _ws_for(domain: str) -> Callable:
 @callback
 def get_support(hass: HomeAssistant, domain: str) -> Support | None:
     return hass.data.get(f"{domain}_support")
+
+
+def _network(exc: BaseException) -> bool:
+    """Home Assistant restarting or the network gone (502, timeout, no connection) - not a fault in the app."""
+    import asyncio
+
+    if isinstance(exc, (asyncio.TimeoutError, TimeoutError, ConnectionError)):
+        return True
+    try:
+        import aiohttp
+    except ImportError:
+        return False
+    if isinstance(exc, aiohttp.ClientResponseError):
+        return exc.status >= 500
+    return isinstance(exc, aiohttp.ClientConnectionError)
