@@ -1,5 +1,6 @@
 // Update Guard panel: one card per pending update with the verdict, why, and a safe update button.
 import { defineSupport, supportText } from "./support.js";
+import { defineSuggest } from "./suggest.js";
 const T = {
   en: {
     title: "Update Guard", check: "Check now", checked: "Checked", none: "No pending updates", allGood: "Everything is up to date",
@@ -284,6 +285,13 @@ UpdateGuardPanel.prototype._renderSupport = function () {
   this._sup = this._sup || document.createElement(defineSupport("update_guard"));
   this._sup.hass = this._hass;
   this.shadowRoot.getElementById("support-slot").appendChild(this._sup);
+  // "Fits your home too" and "From the same developer" (suggest.js) under Help, kept between renders.
+  for (const mode of ["card", "list"]) {
+    const k = `_sg_${mode}`;
+    if (!this[k]) { this[k] = document.createElement(defineSuggest("update_guard")); this[k].setAttribute("mode", mode); }
+    this[k].hass = this._hass;
+    this.shadowRoot.getElementById("support-slot").appendChild(this[k]);
+  }
   this.shadowRoot.querySelector('[data-act="back"]').addEventListener("click", () => { this._view = "list"; this._key = null; this._render(); });
 };
 UpdateGuardPanel.prototype._openSettings = async function () {
