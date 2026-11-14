@@ -266,7 +266,7 @@ def _ws_for(domain: str) -> Callable:
         vol.Required("action"): vol.In(["status", "send", "reply", "hide", "share"]),
         vol.Optional("note"): vol.All(str, vol.Length(max=4000)),
         vol.Optional("images"): vol.All(list, vol.Length(max=3)),
-        vol.Optional("id"): str,
+        vol.Optional("report"): str,  # not "id": that is the websocket message's own number
         vol.Optional("text"): vol.All(str, vol.Length(max=4000)),
         vol.Optional("key"): str,
         vol.Optional("on"): bool,
@@ -282,7 +282,7 @@ def _ws_for(domain: str) -> Callable:
         if a == "send":
             res = await s.send(msg.get("note", ""), msg.get("images") or [])
         elif a == "reply":
-            res = await s.reply(msg.get("id", ""), msg.get("text", ""))
+            res = await s.reply(msg.get("report", ""), msg.get("text", ""))
         elif a == "hide":
             await s.hide(msg.get("key", ""))
         elif a == "share":

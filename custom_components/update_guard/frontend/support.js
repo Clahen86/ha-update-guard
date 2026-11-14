@@ -79,7 +79,7 @@ export function defineSupport(domain) {
       else if (a === "share") await this.call("share", { on: !(this.s?.share ?? true) });
       else if (a === "back" && this.back.trim()) {
         this.backState = "sending"; this.render();
-        const r = await this.call("reply", { id: b.dataset.id, text: this.back.trim() });
+        const r = await this.call("reply", { report: b.dataset.id, text: this.back.trim() });
         this.backState = r?.ok ? "sent" : "fail";
         if (r?.ok) this.back = "";
       }
@@ -105,21 +105,21 @@ export function defineSupport(domain) {
           <button class="btn" data-a="send" ${this.state === "sending" ? "disabled" : ""}>${this.state === "sending" ? t.sending : t.send}</button>`;
       const share = s.share ?? true;
       this.shadowRoot.innerHTML = `<style>
-        :host{display:block;max-width:720px;margin:0 auto;padding:16px;box-sizing:border-box;color:var(--primary-text-color)}
-        .card{background:var(--ha-card-background,var(--card-background-color,#fff));border-radius:var(--ha-card-border-radius,12px);box-shadow:var(--ha-card-box-shadow,0 1px 3px rgba(0,0,0,.12));padding:16px;margin-bottom:16px;overflow:hidden}
-        h2{margin:0 0 6px;font-size:18px}.muted{color:var(--secondary-text-color);font-size:14px}.ok{color:var(--success-color,#2e7d32)}.bad{color:var(--error-color,#c62828)}
-        textarea{width:100%;min-height:90px;box-sizing:border-box;margin:8px 0;padding:10px;border-radius:8px;border:1px solid var(--divider-color);background:var(--secondary-background-color,transparent);color:inherit;font:inherit}
-        .btn{display:block;width:100%;margin-top:8px;padding:12px;border:0;border-radius:10px;background:var(--primary-color);color:var(--text-primary-color,#fff);font:inherit;font-weight:600;cursor:pointer;text-align:center;box-sizing:border-box}
-        .btn.ghost{background:transparent;color:var(--primary-color);border:1px solid var(--divider-color)}.btn:disabled{opacity:.6}
-        .link{background:none;border:0;color:var(--primary-color);cursor:pointer;font:inherit}.close{float:right}
-        .msg{white-space:pre-wrap;margin:8px 0;padding:8px 10px;border-radius:8px;background:var(--secondary-background-color,rgba(0,0,0,.04))}.msg.you{opacity:.8}
+        :host{display:block;max-width:720px;margin:0 auto;padding:16px;box-sizing:border-box;color:var(--primary-text-color,var(--text,#222))}
+        .card{background:var(--ha-card-background,var(--card-background-color,var(--surface,#fff)));border-radius:var(--ha-card-border-radius,12px);box-shadow:var(--ha-card-box-shadow,0 1px 3px rgba(0,0,0,.12));padding:16px;margin-bottom:16px;overflow:hidden}
+        h2{margin:0 0 6px;font-size:18px}.muted{color:var(--secondary-text-color,var(--muted,#666));font-size:14px}.ok{color:var(--success-color,#2e7d32)}.bad{color:var(--error-color,#c62828)}
+        textarea{width:100%;min-height:90px;box-sizing:border-box;margin:8px 0;padding:10px;border-radius:8px;border:1px solid var(--divider-color,var(--line2,#ccc));background:var(--secondary-background-color,var(--surface2,transparent));color:inherit;font:inherit}
+        .btn{display:block;width:100%;margin-top:8px;padding:12px;border:0;border-radius:10px;background:var(--primary-color,var(--accent,#03a9f4));color:var(--text-primary-color,#fff);font:inherit;font-weight:600;cursor:pointer;text-align:center;box-sizing:border-box}
+        .btn.ghost{background:transparent;color:var(--primary-color,var(--accent,#03a9f4));border:1px solid var(--divider-color,var(--line2,#ccc))}.btn:disabled{opacity:.6}
+        .link{background:none;border:0;color:var(--primary-color,var(--accent,#03a9f4));cursor:pointer;font:inherit}.close{float:right}
+        .msg{white-space:pre-wrap;margin:8px 0;padding:8px 10px;border-radius:8px;background:var(--secondary-background-color,var(--surface2,rgba(0,0,0,.04)))}.msg.you{opacity:.8}
         .imgs{display:flex;gap:8px;flex-wrap:wrap}.imgs span{position:relative}.imgs img{width:72px;height:72px;object-fit:cover;border-radius:8px}
         .imgs button{position:absolute;top:-6px;right:-6px;border:0;border-radius:50%;width:22px;height:22px;background:var(--error-color,#c62828);color:#fff;cursor:pointer}
-        details{margin-top:10px}summary{cursor:pointer;color:var(--primary-color)}
-        .row{display:flex;gap:12px;align-items:center}.row div{flex:1}.row small{display:block;color:var(--secondary-text-color)}
+        details{margin-top:10px}summary{cursor:pointer;color:var(--primary-color,var(--accent,#03a9f4))}
+        .row{display:flex;gap:12px;align-items:center}.row div{flex:1}.row small{display:block;color:var(--secondary-text-color,var(--muted,#666))}
         .sw{width:44px;height:26px;border-radius:13px;border:0;background:var(--disabled-color,#bbb);position:relative;cursor:pointer;flex:none}
         .sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s}
-        .sw.on{background:var(--primary-color)}.sw.on::after{left:21px}
+        .sw.on{background:var(--primary-color,var(--accent,#03a9f4))}.sw.on::after{left:21px}
       </style>${notes}${reps}
       <div class="card"><h2>🛟 ${t.title}</h2>${form}</div>
       <div class="card"><div class="row"><div><b>${t.share}</b><small>${t.shareH}</small></div><button class="sw ${share ? "on" : ""}" data-a="share" role="switch" aria-checked="${share}" aria-label="${esc(t.share)}"></button></div></div>`;
