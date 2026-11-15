@@ -4,6 +4,22 @@
 // Get help (message, up to 3 pictures, a short diagnosis), answers from the developer (write back, Close), and the
 // switch for sending errors anonymously. Talks to the integration over the websocket "<domain>/support".
 
+// my.home-assistant.io links open right inside Home Assistant (/_my_redirect/...), also from an add-on's page and
+// the phone app, so nobody has to set up my.home-assistant.io. Outside Home Assistant the normal link is kept.
+if (!window.__clahen86MyGo) {
+  window.__clahen86MyGo = true;
+  window.addEventListener("click", (e) => {
+    const a = e.composedPath().find((n) => n.tagName === "A" && n.href);
+    const m = a && a.href.match(/^https:\/\/my\.home-assistant\.io\/redirect\/([^/?]+)\/?(\?.*)?$/);
+    if (!m || e.button || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    let top; try { top = window.top; top.document; } catch { top = window; }
+    if (!top.document.querySelector("home-assistant")) return;
+    e.preventDefault();
+    top.history.pushState(null, "", `/_my_redirect/${m[1]}${m[2] || ""}`);
+    top.dispatchEvent(new CustomEvent("location-changed"));
+  }, true);
+}
+
 const T = {
   da: { help: "Hjælp", title: "Få hjælp", sub: "Skriv hvad der er galt, og vedhæft gerne billeder. Udvikleren får også en kort diagnose.", ph: "Hvad er der galt? (valgfrit)", attach: "Vedhæft billeder", max3: "Højst 3 billeder", whatq: "Hvad bliver sendt?", what: ["Din besked og dine billeder", "Version, Home Assistant-version, land og sprog", "Dine valg (kun tal og til/fra)", "Antal og fejl i appen"], no: "Ingen navne på enheder, rum eller personer, ingen adresser eller koder. Kun udvikleren ser det.", send: "Send", sending: "Sender …", sent: "Sendt ✓ – dit nummer er {id}. Du får en besked i Home Assistant, når udvikleren svarer.", fail: "Kunne ikke sende lige nu. Prøv igen om lidt.", newOne: "Skriv en ny", answer: "Svar fra udvikleren", note: "Besked fra udvikleren om en fejl", dev: "Udvikleren", you: "Dig", wait: "Venter på svar – du får en besked i Home Assistant.", back: "Skriv tilbage …", sendBack: "Send svar", sentBack: "Sendt ✓", close: "Luk", share: "Send fejl anonymt", shareH: "Fejl i appen sendes uden navne, så de kan blive rettet – og udvikleren kan skrive til dig om dem.", full: "Del min opsætning", fullH: "Sender også de fulde navne på de enheder og entiteter, appen bruger, så profiler og fejl kan rettes. Ellers sendes navnene uden dit enhedsnavn.", shareH2: "Fejl i appen og hvordan den er sat op (mærker og hvad entiteterne bruges til) sendes uden dine navne, så det kan blive rettet – og udvikleren kan skrive til dig om det." },
   en: { help: "Help", title: "Get help", sub: "Tell what's wrong and attach pictures if you like. The developer also gets a short diagnosis.", ph: "What's wrong? (optional)", attach: "Attach pictures", max3: "At most 3 pictures", whatq: "What is sent?", what: ["Your message and pictures", "Version, Home Assistant version, country and language", "Your choices (numbers and on/off only)", "Counts and errors in the app"], no: "No names of devices, rooms or people, no addresses or passwords. Only the developer sees it.", send: "Send", sending: "Sending …", sent: "Sent ✓ – your number is {id}. You'll get a notification in Home Assistant when the developer answers.", fail: "Couldn't send right now. Try again in a moment.", newOne: "Write a new one", answer: "Answer from the developer", note: "Message from the developer about an error", dev: "Developer", you: "You", wait: "Waiting for an answer – you'll get a notification in Home Assistant.", back: "Write back …", sendBack: "Send reply", sentBack: "Sent ✓", close: "Close", share: "Send errors anonymously", shareH: "Errors in the app are sent without names so they can be fixed – and the developer can write to you about them.", full: "Share my setup", fullH: "Also sends the full names of the devices and entities the app uses, so profiles and errors can be fixed. Otherwise the names are sent without your device name.", shareH2: "Errors in the app and how it is set up (brands and what the entities are used for) are sent without your names so they can be fixed – and the developer can write to you about them." },
