@@ -48,6 +48,17 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 
+
+def _file_version() -> str:
+    try:
+        return json.loads((Path(__file__).parent / "manifest.json").read_text())["version"]
+    except Exception:  # noqa: BLE001
+        return "?"
+
+
+# Read once on import (Home Assistant imports integrations outside the event loop) - only a fallback.
+_FILE_VERSION = _file_version()
+
 _LOGGER = logging.getLogger(__name__)
 URL = "https://ep-reports.clahen86.workers.dev"
 DAY = 24 * 3600
@@ -120,10 +131,13 @@ class Support:
         self.hass.data.pop(f"{self.domain}_support", None)
 
     def version(self) -> str:
+        """The integration's version - from Home Assistant's loader, never read from disk in the event loop."""
         try:
-            return json.loads((Path(__file__).parent / "manifest.json").read_text())["version"]
+            from homeassistant.loader import async_get_loaded_integration
+
+            return str(async_get_loaded_integration(self.hass, self.domain).version or _FILE_VERSION)
         except Exception:  # noqa: BLE001
-            return "?"
+            return _FILE_VERSION
 
     @property
     def share(self) -> bool:
