@@ -98,11 +98,14 @@ class Installer:
                 return update
         raise UpdateRefused("not_pending", entity_id=entity_id)
 
-    async def async_safe_update(self, entity_id: str, when: str = "now", force: bool = False, auto: bool = False) -> str:
+    async def async_safe_update(
+        self, entity_id: str, when: str = "now", force: bool = False, auto: bool = False, update: dict[str, Any] | None = None
+    ) -> str:
         """Install one update the safe way. Returns what was done: installed or planned.
 
-        auto: planned by Update Guard itself (safe cards and themes) - then it must still be safe when the time comes."""
-        update = self._update(entity_id)
+        auto: planned by Update Guard itself (safe cards and themes) - then it must still be safe when the time comes.
+        update: the update itself, from a check that isn't saved yet (the night plan is made during the check)."""
+        update = update or self._update(entity_id)
         if update["level"] == LEVEL_WAIT and not force:
             self.coordinator.after.count("refused", "is_wait")
             raise UpdateRefused("is_wait", name=update["name"], verdict=update.get("verdict", ""))

@@ -75,3 +75,10 @@ async def test_plans_survive_and_auto_must_stay_safe(hass: HomeAssistant) -> Non
 
 async def _coro(value):
     return value
+
+
+async def test_auto_plan_with_update_not_yet_saved(hass: HomeAssistant) -> None:
+    update = {"entity_id": "update.new_card", "name": "New card", "kind": "hacs", "latest": "1", "level": "safe"}
+    i = _installer(hass, updates=[], auto=True)  # the saved list doesn't have it yet
+    assert await i.async_safe_update("update.new_card", "tonight", auto=True, update=update) == "planned"
+    i.async_stop()

@@ -14,6 +14,7 @@ from homeassistant.components.update import UpdateEntityFeature
 from homeassistant.components.update.const import DATA_COMPONENT, DOMAIN as UPDATE_DOMAIN
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import STATE_ON, __version__ as HA_VERSION
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -409,7 +410,10 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 and update.get("category") in ("plugin", "theme")
                 and update["entity_id"] not in self.installer.planned
             ):
-                await self.installer.async_safe_update(update["entity_id"], "tonight", auto=True)
+                try:  # the check that is running now has it, the saved list may not yet
+                    await self.installer.async_safe_update(update["entity_id"], "tonight", auto=True, update=update)
+                except HomeAssistantError as err:  # one plan that can't be made never stops the check
+                    _LOGGER.info("Not planning %s tonight: %s", update["name"], err)
 
     def _own_terms(self, kind: str, entry: er.RegistryEntry | None) -> dict[str, str]:
         """Entities of what is being updated: the HACS integration, or the device for firmware."""
