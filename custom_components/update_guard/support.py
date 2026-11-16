@@ -189,8 +189,8 @@ class Support:
         if not record.exc_info or not record.exc_info[1]:
             return
         exc = record.exc_info[1]
-        if _network(exc):
-            return
+        if _network(exc) or getattr(exc, "translation_key", None):
+            return  # a translated message the app chose to show (a refusal, "not set up") - not a fault
         frames = [f for f in traceback.extract_tb(record.exc_info[2]) if self.domain in f.filename]
         where = f"{os.path.basename(frames[-1].filename)}:{frames[-1].lineno} {frames[-1].name}" if frames else "?"
         text = f"{type(exc).__name__} at {where}"
