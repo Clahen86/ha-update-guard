@@ -81,7 +81,8 @@
         },
         "abort": {
           "no_rollback": "Den kan ikke gå tilbage af sig selv. Gendan en backup under Indstillinger → System → Backups.",
-          "not_loaded": "Update Guard kører ikke."
+          "not_loaded": "Update Guard kører ikke.",
+          "some_rolled_back": "De andre gik tilbage, men disse kunne ikke: {names}. Gendan dem fra en backup."
         }
       }
     },
@@ -157,7 +158,7 @@
       "message": "Update Guard kører ikke."
     },
     "not_pending": {
-      "message": "{entity_id} har ingen ventende opdatering."
+      "message": "Intet at installere for {entity_id}: den er allerede installeret eller sprunget over. Listen er opdateret."
     },
     "is_wait": {
       "message": "Ikke installeret: {verdict}"
@@ -170,6 +171,9 @@
     },
     "no_rollback": {
       "message": "Den kan ikke gå tilbage af sig selv. Gendan en backup."
+    },
+    "in_progress": {
+      "message": "{name} bliver allerede installeret."
     }
   }
 }

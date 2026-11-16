@@ -81,7 +81,8 @@
         },
         "abort": {
           "no_rollback": "It can't go back by itself. Restore a backup under Settings → System → Backups.",
-          "not_loaded": "Update Guard isn't running."
+          "not_loaded": "Update Guard isn't running.",
+          "some_rolled_back": "The others went back, but these couldn't: {names}. Restore them from a backup."
         }
       }
     },
@@ -157,7 +158,7 @@
       "message": "Update Guard isn't running."
     },
     "not_pending": {
-      "message": "{entity_id} has no pending update."
+      "message": "Nothing to install for {entity_id}: it was installed or skipped already. The list is updated."
     },
     "is_wait": {
       "message": "Not installed: {verdict}"
@@ -170,6 +171,9 @@
     },
     "no_rollback": {
       "message": "It can't go back by itself. Restore a backup."
+    },
+    "in_progress": {
+      "message": "{name} is being installed already."
     }
   }
 }

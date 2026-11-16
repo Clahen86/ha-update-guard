@@ -148,6 +148,8 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         for update in updates:
             update["verdict"] = verdict(update, self.hass.config.language)
+            if update.get("self_updates") and update["level"] == LEVEL_WAIT:
+                update["verdict"] += f" – {self._text('self_updates')}"
         # Within a level: Home Assistant first, then security fixes.
         updates.sort(
             key=lambda u: (LEVELS.index(u["level"]), u["kind"] != KIND_CORE, not u.get("security"), u["name"].lower())
@@ -257,6 +259,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             skipped=skipped if len(skipped) > 1 else [],
             news=notes.scan_news(text or "", news_terms),
             category=self._category(entry),
+            **(await self._app_extra(entry) if kind == KIND_APP else {}),
         )
 
     async def _option_keys(self, kind: str, entry: er.RegistryEntry | None) -> set[str]:
@@ -397,6 +400,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _auto_install(self, updates: list[dict[str, Any]]) -> None:
         """Safe cards and themes are installed tonight, when that is switched on."""
         if not self.config_entry.options.get(CONF_AUTO_SAFE):
+            self.installer.cancel_auto()  # switched off: tonight's automatic plans go too
             return
         for update in updates:
             if (
@@ -405,7 +409,7 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 and update.get("category") in ("plugin", "theme")
                 and update["entity_id"] not in self.installer.planned
             ):
-                await self.installer.async_safe_update(update["entity_id"], "tonight")
+                await self.installer.async_safe_update(update["entity_id"], "tonight", auto=True)
 
     def _own_terms(self, kind: str, entry: er.RegistryEntry | None) -> dict[str, str]:
         """Entities of what is being updated: the HACS integration, or the device for firmware."""
@@ -448,6 +452,21 @@ class UpdateGuardCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if repo := _repo(url):
                     found.setdefault(f"{repo[0]}/{repo[1]}".lower(), domain)
         return found
+
+    async def _app_extra(self, entry: er.RegistryEntry | None) -> dict[str, Any]:
+        """An app's slug (for its backup), and whether the Supervisor updates it by itself - then "wait" can't
+        hold it back."""
+        if entry is None:
+            return {}
+        slug = entry.unique_id.removesuffix("_version_latest")
+        try:
+            from homeassistant.components.hassio import get_supervisor_client
+
+            info = await get_supervisor_client(self.hass).addons.addon_info(slug)
+            auto = bool(getattr(info, "auto_update", False))
+        except Exception:  # noqa: BLE001 - no Supervisor, or the app is gone
+            auto = False
+        return {"slug": slug, "self_updates": auto}
 
     async def _app_options(self, slug: str) -> set[str]:
         """Option names set in an app (add-on), via the Supervisor."""

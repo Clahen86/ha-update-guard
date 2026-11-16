@@ -121,6 +121,10 @@ NOTIFY_TEXT = {
         "dead_archived": "archived by its developer",
         "dead_old": "no changes since {year}",
         "skipped": "{n} versions in one",
+        "plan_wait": "{name} wasn't installed tonight: Update Guard now says to wait.",
+        "plan_busy": "{name} wasn't installed: {busy} kept running for 6 hours. Try again when it's done.",
+        "install_failed": "{name} couldn't be installed: {error}",
+        "self_updates": "The Supervisor updates this app by itself (auto update is on), so waiting won't hold it back",
     },
     "da": {
         "wait": "Vent",
@@ -152,5 +156,9 @@ NOTIFY_TEXT = {
         "dead_archived": "arkiveret af udvikleren",
         "dead_old": "ingen ændringer siden {year}",
         "skipped": "{n} versioner i én",
+        "plan_wait": "{name} blev ikke installeret i nat: Opdateringsvagten siger nu, at du skal vente.",
+        "plan_busy": "{name} blev ikke installeret: {busy} kørte i 6 timer. Prøv igen, når den er færdig.",
+        "install_failed": "{name} kunne ikke installeres: {error}",
+        "self_updates": "Supervisoren opdaterer selv denne app (automatisk opdatering er slået til), så vent holder den ikke tilbage",
     },
 }

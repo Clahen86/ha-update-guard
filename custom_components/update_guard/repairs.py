@@ -38,11 +38,17 @@ class RollbackFlow(RepairsFlow):
             if not entries:
                 return self.async_abort(reason="not_loaded")
             installer = entries[0].runtime_data.installer
-            try:
-                for item in self.items:
+            # Each one on its own: one that can't go back doesn't stop the others, and the user is told which.
+            failed = []
+            for item in self.items:
+                try:
                     await installer.async_rollback(item["entity_id"], item["version"], item["kind"], item.get("slug"))
-            except HomeAssistantError:
+                except HomeAssistantError:
+                    failed.append(f"{item['name']} {item['version']}")
+            if failed and len(failed) == len(self.items):
                 return self.async_abort(reason="no_rollback")
+            if failed:
+                return self.async_abort(reason="some_rolled_back", description_placeholders={"names": ", ".join(failed)})
             return self.async_create_entry(data={})
         names = ", ".join(f"{i['name']} {i['version']}" for i in self.items)
         return self.async_show_form(

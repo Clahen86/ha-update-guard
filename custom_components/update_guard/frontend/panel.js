@@ -93,6 +93,9 @@ class UpdateGuardPanel extends HTMLElement {
       this._toast(this.t.done[r?.response?.result] || "✓");
     } catch (err) {
       this._toast(err?.message || String(err), true);
+      // The list may be old (installed or skipped since): fetch a fresh one behind the message.
+      const button = this._entities("button")[0];
+      if (button) this._hass.callService("button", "press", { entity_id: button.entity_id }).catch(() => {});
     }
   }
   async _checkNow() {
