@@ -49,7 +49,8 @@ All settings are under **⚙️** in the panel and are saved right away: which p
 ### More it does
 
 - **Panel** in the sidebar with every update, the verdict, why, and buttons.
-- **Safe update** (button in the panel, or the action `update_guard.safe_update`): refuses what says Wait, needs 2 GB free disk space, waits while the devices you chose are running (washing machine, car charger), and only takes a backup when last night's automatic backup doesn't cover it (cards and integrations never need one: they go back by installing the old version). Now or **tonight** at 04:30.
+- **Safe update** (button in the panel, or the action `update_guard.safe_update`): refuses what says Wait, needs 2 GB free disk space, waits while the devices you chose are running (washing machine, car charger – a power sensor counts as running above 10 W), won't start while Home Assistant is already installing it, and only takes a backup when last night's automatic backup doesn't cover it – for an app only if that backup includes it (cards and integrations never need one: they go back by installing the old version). Now or **tonight** at 04:30. Tonight's plans survive a restart, and if a backup or an update fails – or a night run is refused or gives up – you get a notification.
+- **Wait vs. auto update:** an app that has the Supervisor's own auto update on is marked under Wait, because waiting won't hold it back.
 - **Go back:** if something stops working after an update, the repair has a button that installs the old version again (HACS) or restores the app's backup.
 - **Other people's reports:** new GitHub issues that name the new version. Before a Home Assistant update it also searches your HACS projects for issues about the new Home Assistant version.
 - **Skipped versions:** jumping from 1.9 to 2.1 reads the notes of 2.0 too.
@@ -212,7 +213,8 @@ Du ser vurderingen i **panelet** i sidemenuen, på sensoren og under **Indstilli
 
 ### Mere den kan
 
-- **Opdater sikkert:** siger nej til Vent, kræver 2 GB ledig plads, venter mens dine valgte enheder kører, og tager kun backup, hvis nattens ikke dækker. Nu eller **i nat** kl. 04:30.
+- **Opdater sikkert:** siger nej til Vent, kræver 2 GB ledig plads, venter mens dine valgte enheder kører (en effektsensor tæller som "kører" over 10 W), starter ikke, hvis Home Assistant allerede installerer den, og tager kun backup, hvis nattens ikke dækker – for en app kun hvis nattens backup tager den med. Nu eller **i nat** kl. 04:30. Nattens planer overlever en genstart, og fejler en backup eller opdatering – eller afvises en natkørsel – får du besked.
+- **Vent og automatisk opdatering:** en app med Supervisorens egen automatiske opdatering slået til markeres under Vent, for så holder vent den ikke tilbage.
 - **Gå tilbage:** går noget i stykker, har reparationen en knap, der installerer den gamle version igen.
 - **Andre melder fejl:** nye GitHub-issues, der nævner versionen. Før en HA-opdatering tjekker den også dine HACS-projekter.
 - **Oversprungne versioner** læses med. **Vent på .1** (valgfrit). **🔒 Sikkerhedsrettelser** først. **Nyt for dig.**
