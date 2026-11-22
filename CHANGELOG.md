@@ -2,6 +2,10 @@
 
 Newest first. Each version lists what changed since the one before.
 
+## 0.11.2 – 2026-11-22
+
+- No more warning in Home Assistant's log at start-up (the version was read from disk in the event loop)
+
 ## 0.11.1 – 2026-11-16
 
 - A new safe update no longer stops the check when it is planned for tonight

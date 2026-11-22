@@ -29,10 +29,8 @@ from __future__ import annotations
 from collections.abc import Callable
 import datetime
 import hashlib
-import json
 import logging
 import os
-from pathlib import Path
 import re
 import time
 import traceback
@@ -49,15 +47,9 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 
 
-def _file_version() -> str:
-    try:
-        return json.loads((Path(__file__).parent / "manifest.json").read_text())["version"]
-    except Exception:  # noqa: BLE001
-        return "?"
-
-
-# Read once on import (Home Assistant imports integrations outside the event loop) - only a fallback.
-_FILE_VERSION = _file_version()
+# Only a fallback: the version comes from Home Assistant's loader (version()). Never read from disk - the module can be
+# imported inside the event loop (a late import in async_setup_entry), and HA warns about that.
+_FILE_VERSION = "?"
 
 _LOGGER = logging.getLogger(__name__)
 URL = "https://ep-reports.clahen86.workers.dev"
